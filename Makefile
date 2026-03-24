@@ -1,7 +1,7 @@
 .PHONY: test-ghostfolio test-ghostfolio-api test-ghostfolio-ui test-ghostfolio-common \
-        evaluate test-translated-ghostfolio test-ghostfolio-tx \
+        evaluate test-translated-ghostfolio test-ghostfolio-tx test-ghostfolio-pytx \
         test-ghostfolio-api-suite spinup-and-test-ghostfolio \
-        spinup-and-test-ghostfolio_pytx
+        spinup-and-test-ghostfolio_pytx_example spinup-and-test-ghostfolio_pytx
 
 # Original ghostfolio tests
 test-ghostfolio:
@@ -19,8 +19,13 @@ evaluate:
 test-translated-ghostfolio:
 	cd translations/ghostfolio_pytx && python -m pytest
 
-# API tests against the translated ghostfolio Python project
+# Run pytest directly against the tt-translated output in translations/ghostfolio_pytx
+# (unit tests embedded in the translated files)
 test-ghostfolio-tx:
+	bash projecttests/tools/test_ghostfolio_tx.sh
+
+# Alias for test-ghostfolio-tx
+test-ghostfolio-pytx:
 	bash projecttests/tools/test_ghostfolio_tx.sh
 
 # Python integration tests against a live Ghostfolio API
@@ -34,9 +39,16 @@ test-ghostfolio-api-suite:
 spinup-and-test-ghostfolio:
 	bash projecttests/tools/spinup_and_test_ghostfolio.sh
 
-# Spin up the translated Python Ghostfolio API skeleton, run the same API
-# test suite against it, then stop the server.
+# Spin up the ghostfolio_pytx_example reference skeleton, run the API test suite,
+# then stop the server. The example shows how a translated API should respond.
 # Set KEEP_UP=1 to leave the server running after tests
-# Set PYTX_PORT to change the port (default: 3334)
+# Set PYTX_EXAMPLE_PORT to change the port (default: 3334)
+spinup-and-test-ghostfolio_pytx_example:
+	bash projecttests/tools/spinup_and_test_ghostfolio_pytx_example.sh
+
+# Spin up the tt-translated Python project in translations/ghostfolio_pytx,
+# run the API test suite against it, then stop the server.
+# Set KEEP_UP=1 to leave the server running after tests
+# Set PYTX_PORT to change the port (default: 3335)
 spinup-and-test-ghostfolio_pytx:
 	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
