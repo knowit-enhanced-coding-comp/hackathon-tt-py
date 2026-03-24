@@ -1,7 +1,8 @@
 .PHONY: test-ghostfolio test-ghostfolio-api test-ghostfolio-ui test-ghostfolio-common \
         evaluate test-translated-ghostfolio test-ghostfolio-tx test-ghostfolio-pytx \
         test-ghostfolio-api-suite spinup-and-test-ghostfolio \
-        spinup-and-test-ghostfolio_pytx_example spinup-and-test-ghostfolio_pytx
+        spinup-and-test-ghostfolio_pytx_example spinup-and-test-ghostfolio_pytx \
+        translate-and-test-ghostfolio_pytx
 
 # Original ghostfolio tests
 test-ghostfolio:
@@ -51,4 +52,10 @@ spinup-and-test-ghostfolio_pytx_example:
 # Set KEEP_UP=1 to leave the server running after tests
 # Set PYTX_PORT to change the port (default: 3335)
 spinup-and-test-ghostfolio_pytx:
+	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
+
+# Run tt translate to (re)generate translations/ghostfolio_pytx, then spin up
+# the server and run the full API test suite against it.
+translate-and-test-ghostfolio_pytx:
+	uv run --project tt tt translate
 	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
