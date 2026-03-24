@@ -39,7 +39,56 @@ The TT will be judged on:
 
 The translation tool reside in the root folder `tt`.
 
-### TODO: Explain how to run tests against your translated versions
+## Testing the Python Translation: ghostfolio_pytx
+
+### What is ghostfolio_pytx?
+
+`translations/ghostfolio_pytx/` is a **Python skeleton** of the Ghostfolio portfolio API built with FastAPI. It is a translation target — a stub that implements all the required API endpoints with structurally correct responses but without real portfolio calculation logic. Its purpose is to let you run the full integration test suite locally and incrementally implement the calculations until all tests pass.
+
+The skeleton keeps all state in memory (no database). Each test creates and deletes its own user, so tests are isolated from each other.
+
+### Running the tests
+
+```bash
+make spinup-and-test-ghostfolio_pytx
+```
+
+This command:
+
+1. Syncs Python dependencies for `translations/ghostfolio_pytx` using `uv`.
+2. Starts a `uvicorn` server on port **3334** in the background.
+3. Waits up to 30 seconds for `GET /api/v1/health` to return 200.
+4. Runs the same integration test suite (`projecttests/ghostfolio_api/`) used for the original Ghostfolio, pointing it at `http://localhost:3334`.
+5. Stops the server when tests finish.
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `PYTX_PORT` | `3334` | Host port for the skeleton server |
+| `KEEP_UP` | `0` | Set to `1` to leave the server running after tests |
+
+### Why some tests pass and others fail
+
+The skeleton intentionally returns zero/empty values for all portfolio calculations. Despite this, some tests pass because:
+
+**Tests that pass (≈22/60):**
+
+- **Empty-is-correct assertions** — tests that assert `investments` is an empty list, `holdings` is an empty dict, `chart` is an empty list, or `totalFees` is zero. The stub returns exactly these values, so these assertions match.
+- **Simple buy-minus-sell price formula** — the stub computes `totalInvestment` as `sum(BUY qty × unitPrice) − sum(SELL qty × unitPrice)`. For buy-only portfolios and for portfolios where all positions are fully closed (total cost basis nets to zero), this formula gives the correct answer.
+- **Accessibility-only assertions** — some tests only check that a field exists or that an HTTP response is 200, without asserting a specific calculated value.
+
+**Tests that fail (≈38/60):**
+
+These tests require real portfolio calculations that are not yet implemented in the skeleton:
+
+- **Chart history** — `chart` is always `[]`; tests asserting specific data points or a non-empty chart fail.
+- **Current market value / net performance** — `currentValue`, `netPerformance`, `netPerformancePercentage`, and related fields are always `0.0`; tests expecting non-zero performance figures fail.
+- **Holdings** — `holdings` is always `{}`; tests asserting specific holding quantities, allocation percentages, or per-symbol data fail.
+- **Grouped investments** — `investments` is always `[]`; tests asserting investment entries grouped by month or year fail.
+- **Cost-basis tracking** — buy/sell sequences where the correct `totalInvestment` depends on tracking average cost (not just summing prices) produce wrong results.
+
+To make more tests pass, implement the portfolio calculation logic inside `translations/ghostfolio_pytx/app/main.py`.
 
 ## The translated projects
 
