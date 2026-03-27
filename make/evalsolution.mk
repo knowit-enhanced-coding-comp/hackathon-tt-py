@@ -1,3 +1,12 @@
+# ---------------------------------------------------------------------------
+# evalsolution.mk — evaluate, test, and score the tt-translated project
+#
+# This file contains the main iteration loop for developing the translation
+# tool (tt).  Use evaluate_tt for the full end-to-end check; use the
+# individual spinup/translate targets for faster feedback during development.
+#
+# Port used by the translated project: 3335 (set PYTX_PORT to override)
+# ---------------------------------------------------------------------------
 .PHONY: evaluate test-translated-ghostfolio test-ghostfolio-tx test-ghostfolio-pytx \
         spinup-and-test-ghostfolio_pytx \
         translate-and-test-ghostfolio_pytx evaluate_tt \

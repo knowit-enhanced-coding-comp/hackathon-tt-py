@@ -1,3 +1,14 @@
+# ---------------------------------------------------------------------------
+# evalexamplesolution.mk — run the handwritten reference skeleton
+#
+# ghostfolio_pytx_example is a manually written FastAPI implementation that
+# demonstrates the expected shape of a fully translated Ghostfolio API.
+# It returns structurally correct (but mostly stub) responses so the test
+# suite can run end-to-end.  Use it to understand which tests are reachable
+# with a correct API structure, independent of calculation correctness.
+#
+# Port: 3334 (set PYTX_EXAMPLE_PORT to override)
+# ---------------------------------------------------------------------------
 .PHONY: spinup-and-test-ghostfolio_pytx_example
 
 # Spin up the ghostfolio_pytx_example reference skeleton, run the API test suite,

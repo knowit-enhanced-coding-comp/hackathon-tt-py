@@ -1,3 +1,12 @@
+# ---------------------------------------------------------------------------
+# studyoriginal.mk — TypeScript coverage for the original Ghostfolio project
+#
+# Targets in this file measure how much of the original TypeScript source is
+# exercised by tests, helping you understand which code paths need to be
+# translated and verified.
+#
+# Prerequisites: cd projects/ghostfolio && npm install
+# ---------------------------------------------------------------------------
 .PHONY: coverage-ghostfolio-ts coverage-ghostfolio-integration
 
 # Run the Ghostfolio API TypeScript unit tests with Jest coverage.

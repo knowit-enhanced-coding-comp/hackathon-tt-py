@@ -1,3 +1,13 @@
+# ---------------------------------------------------------------------------
+# evaloriginal.mk — run the original Ghostfolio test suite and Python API tests
+#
+# Targets in this file verify that the original Ghostfolio TypeScript project
+# works correctly, and run the Python integration test suite against a live
+# Ghostfolio instance (via Docker Compose) to establish a ground-truth baseline.
+#
+# Prerequisites: cd projects/ghostfolio && npm install
+#                Docker must be running for spinup-and-test-ghostfolio
+# ---------------------------------------------------------------------------
 .PHONY: test-ghostfolio test-ghostfolio-api test-ghostfolio-ui test-ghostfolio-common \
         test-ghostfolio-api-suite spinup-and-test-ghostfolio
 
