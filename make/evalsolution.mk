@@ -59,7 +59,7 @@ evaluate_tt:
 	uv run --project tt python evaluate/checks/detect_direct_mappings.py
 	@echo "=== [2/3] API tests + scoring against translated version ==="
 	KEEP_UP=1 bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
-	uv run --project tt python evaluate/checks/test_scoring.py
+	uv run --project tt python evaluate/checks/scoring.py
 	bash projecttests/tools/kill_ghostfolio_pytx.sh
 	@echo "=== [3/3] Code quality checks ==="
 	bash evaluate/checks/run_quality_checks.sh
