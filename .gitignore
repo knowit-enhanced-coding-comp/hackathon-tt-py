@@ -52,3 +52,6 @@ Thumbs.db
 
 # Coverage
 .pyscn/reports
+
+# Scoring
+evaluate/scoring/results/

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 evaluate/scoring/report — run pyscn_scoring and present results.
 
@@ -104,10 +103,12 @@ def run(translated_path: Path | None = None, tt_path: Path | None = None) -> dic
     try:
         from evaluate.scoring.codequality.pyscn_scoring import run as score_run  # type: ignore
     except ImportError:
-        spec_path = SCORING_DIR / "pyscn_scoring"
+        spec_path = SCORING_DIR / "pyscn_scoring.py"
+        import importlib.machinery
         import importlib.util
 
-        spec = importlib.util.spec_from_file_location("pyscn_scoring", spec_path)
+        loader = importlib.machinery.SourceFileLoader("pyscn_scoring", str(spec_path))
+        spec = importlib.util.spec_from_loader("pyscn_scoring", loader)
         assert spec and spec.loader
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)  # type: ignore[attr-defined]

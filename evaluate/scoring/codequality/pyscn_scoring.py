@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 pyscn_scoring — measure code quality via pyscn for two targets.
 
@@ -59,7 +58,7 @@ def _run_pyscn(path: Path) -> dict:
     )
 
     # pyscn prints the JSON report path in stdout
-    match = re.search(r"Unified JSON report generated:\s*(.+\.json)", result.stdout)
+    match = re.search(r"Unified JSON report generated:\s*(.+\.json)", result.stderr)
     if not match:
         return {"error": "pyscn did not emit a JSON report path", "health_score": 0, "grade": "F"}
 

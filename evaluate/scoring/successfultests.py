@@ -149,6 +149,25 @@ def score(results: list[tuple[str, bool]]) -> tuple[int, int, int, int]:
     return achieved, max_possible, sum(1 for _, p in results if p), len(results)
 
 
+def run(api_url: str | None = None) -> dict:
+    """Return scoring result dict for use by other scripts."""
+    import os
+    repo_root = Path(__file__).parent.parent.parent.resolve()
+    api_url = api_url or os.environ.get("GHOSTFOLIO_API_URL", "http://localhost:3335")
+    results = run_pytest(repo_root, api_url)
+    if not results:
+        return {"error": "no test results collected", "score": 0, "max_score": MAX_SCORE, "percentage": 0.0}
+    achieved, max_possible, n_passed, n_total = score(results)
+    return {
+        "achieved": achieved,
+        "max_possible": max_possible,
+        "theoretical_max": MAX_SCORE,
+        "n_passed": n_passed,
+        "n_total": n_total,
+        "percentage": round(achieved / max_possible * 100, 2) if max_possible else 0.0,
+    }
+
+
 def main() -> int:
     import os
     repo_root = Path(__file__).parent.parent.parent.resolve()
