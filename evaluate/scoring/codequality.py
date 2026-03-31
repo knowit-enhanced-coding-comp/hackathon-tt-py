@@ -63,8 +63,6 @@ def _print_report(result: dict) -> None:
     print(f"  {'Weighted score':<22} {_bar(ws)}  {ws:5.1f}/100  grade={_grade_colour(wg)}")
     print()
 
-    # Sub-scores for translated code (the primary target)
-    print("  --- Sub-scores (translated code) ---")
     sub_keys = [
         ("complexity_score",  "Complexity"),
         ("dead_code_score",   "Dead code"),
@@ -73,20 +71,24 @@ def _print_report(result: dict) -> None:
         ("dependency_score",  "Dependencies"),
         ("architecture_score","Architecture"),
     ]
-    for key, label in sub_keys:
-        v = tc.get(key)
-        if v is not None:
-            print(f"    {label:<20} {v:5.1f}")
+    extra_keys = [
+        ("average_complexity",          "avg_complexity"),
+        ("code_duplication_percentage", "duplication_%"),
+        ("total_files",                 "total_files"),
+    ]
 
-    extra = {
-        "avg_complexity":     tc.get("average_complexity"),
-        "duplication_%":      tc.get("code_duplication_percentage"),
-        "total_files":        tc.get("total_files"),
-    }
-    print()
-    for label, v in extra.items():
-        if v is not None:
-            print(f"    {label:<20} {v}")
+    for section_label, data in [("translated code", tc), ("tt translator", tt)]:
+        print(f"  --- Sub-scores ({section_label}) ---")
+        for key, label in sub_keys:
+            v = data.get(key)
+            if v is not None:
+                print(f"    {label:<20} {v:5.1f}")
+        print()
+        for key, label in extra_keys:
+            v = data.get(key)
+            if v is not None:
+                print(f"    {label:<20} {v}")
+        print()
 
     if tc.get("error"):
         print(f"\n  [!] translated_code error: {tc['error']}")
