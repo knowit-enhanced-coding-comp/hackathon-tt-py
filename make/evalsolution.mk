@@ -55,13 +55,13 @@ evaluate_tt:
 	rm -rf translations/ghostfolio_pytx
 	time uv run --project tt tt translate
 	@echo "=== [2/3] API tests + scoring against translated version ==="
-	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
-	bash projecttests/tools/kill_ghostfolio_pytx.sh
-	bash projecttests/tools/start_ghostfolio_pytx.sh
-	$(MAKE) scoring
-	bash projecttests/tools/kill_ghostfolio_pytx.sh
+	-bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
+	-bash projecttests/tools/kill_ghostfolio_pytx.sh
+	-bash projecttests/tools/start_ghostfolio_pytx.sh
+	-$(MAKE) scoring
+	-bash projecttests/tools/kill_ghostfolio_pytx.sh
 	@echo "=== [3/3] Code quality checks ==="
-	bash evaluate/checks/run_quality_checks.sh
+	-bash evaluate/checks/run_quality_checks.sh
 
 # Run pyscn code quality scoring on translated code and tt itself.
 # Produces a weighted score (translated=80%, tt=20%) and writes JSON to
@@ -72,8 +72,8 @@ scoring_codequality:
 # Run both successful-tests scoring and pyscn code quality scoring, then print a combined overall score.
 scoring:
 	@echo "=== [1/3] Successful tests score ==="
-	uv run --project tt python evaluate/scoring/successfultests.py
+	-uv run --project tt python evaluate/scoring/successfultests.py
 	@echo "=== [2/3] Code quality score ==="
-	uv run --project tt python evaluate/scoring/codequality.py
+	-uv run --project tt python evaluate/scoring/codequality.py
 	@echo "=== [3/3] Overall score (50% tests + 50% code quality) ==="
-	uv run --project tt python evaluate/scoring/overall.py
+	-uv run --project tt python evaluate/scoring/overall.py

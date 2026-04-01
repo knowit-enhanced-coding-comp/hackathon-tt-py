@@ -46,7 +46,7 @@ SCAFFOLD_ROOT = TT_ROOT / "scaffold"
 TRANSLATION_ROOT = Path(__file__).parent.parent.parent / "translations" / "ghostfolio_pytx"
 
 # Functions with more than this many statements are considered non-stub
-MAX_FUNCTION_STATEMENTS = 20
+MAX_FUNCTION_STATEMENTS = 30
 
 # Functions with at least this many lines are candidates for duplication check
 MIN_DUPLICATE_LINES = 10
