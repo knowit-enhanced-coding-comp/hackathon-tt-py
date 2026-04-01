@@ -34,12 +34,14 @@ run_check() {
   fi
 }
 
-run_check "LLM usage in tt/"            "$SCRIPT_DIR/detect_llm_usage.py"
-run_check "Direct mappings in tt/"      "$SCRIPT_DIR/detect_direct_mappings.py"
-run_check "Explicit implementation"     "$SCRIPT_DIR/detect_explicit_implementation.py"
+RULES_DIR="$SCRIPT_DIR/implementation_rules"
+
+run_check "LLM usage in tt/"            "$RULES_DIR/detect_llm_usage.py"
+run_check "Direct mappings in tt/"      "$RULES_DIR/detect_direct_mappings.py"
+run_check "Explicit implementation"     "$RULES_DIR/detect_explicit_implementation.py"
 
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-  run_check "Explicit implementation LLM review" "$SCRIPT_DIR/detect_explicit_implementation_llm.py"
+  run_check "Explicit implementation LLM review" "$RULES_DIR/detect_explicit_implementation_llm.py"
 else
   CHECK_NAMES+=("Explicit implementation LLM review")
   CHECK_STATUSES+=("SKIPPED")

@@ -24,7 +24,7 @@ from pathlib import Path
 # Source root — only scan first-party code, not .venv
 # ---------------------------------------------------------------------------
 
-TT_SRC = Path(__file__).parent.parent / "tt" / "tt"
+TT_SRC = Path(__file__).parent.parent.parent.parent / "tt" / "tt"
 
 # ---------------------------------------------------------------------------
 # Detection patterns

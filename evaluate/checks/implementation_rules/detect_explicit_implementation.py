@@ -41,9 +41,10 @@ from pathlib import Path
 # Configuration
 # ---------------------------------------------------------------------------
 
-TT_ROOT = Path(__file__).parent.parent.parent / "tt" / "tt"
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+TT_ROOT = PROJECT_ROOT / "tt" / "tt"
 SCAFFOLD_ROOT = TT_ROOT / "scaffold"
-TRANSLATION_ROOT = Path(__file__).parent.parent.parent / "translations" / "ghostfolio_pytx"
+TRANSLATION_ROOT = PROJECT_ROOT / "translations" / "ghostfolio_pytx"
 
 # Functions with more than this many statements are considered non-stub
 MAX_FUNCTION_STATEMENTS = 30
@@ -74,6 +75,26 @@ DOMAIN_IDENTIFIERS: frozenset[str] = frozenset({
 # String literals that signal direct domain-event processing
 DOMAIN_EVENT_STRINGS: frozenset[str] = frozenset({
     "BUY", "SELL", "DIVIDEND", "FEE", "LIABILITY", "INTEREST",
+})
+
+# Domain-specific imports that should not appear in scaffold files.
+# Scaffold should only contain HTTP wiring, not domain model construction.
+SCAFFOLD_FORBIDDEN_IMPORTS: frozenset[str] = frozenset({
+    "app.models", "app.helpers.portfolio", "app.helpers.calculation",
+    "app.portfolio",
+})
+
+# Domain-specific substrings in function names inside scaffold files.
+SCAFFOLD_DOMAIN_FUNC_KEYWORDS: frozenset[str] = frozenset({
+    "market_symbol", "activities", "calculator", "symbol_metrics",
+    "cost_basis", "investment", "portfolio", "holding",
+})
+
+# Domain field-name strings used as dict keys in scaffold — signals
+# that the scaffold is constructing or destructuring domain objects.
+SCAFFOLD_DOMAIN_DICT_KEYS: frozenset[str] = frozenset({
+    "marketPrice", "unitPrice", "dataSource", "SymbolProfile",
+    "feeInBaseCurrency", "assetSubClass",
 })
 
 
@@ -158,6 +179,56 @@ def _check_function(
             )
             break
 
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Scaffold-specific checks (signals 5–7)
+# ---------------------------------------------------------------------------
+
+def _check_scaffold_imports(tree: ast.AST, path: Path) -> list[str]:
+    """Signal 5: scaffold files must not import domain-specific modules."""
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for forbidden in SCAFFOLD_FORBIDDEN_IMPORTS:
+                if node.module == forbidden or node.module.startswith(forbidden + "."):
+                    violations.append(
+                        f"{path}:{node.lineno}: scaffold imports domain module "
+                        f"'{node.module}' — scaffold must only contain HTTP wiring"
+                    )
+    return violations
+
+
+def _check_scaffold_func_names(tree: ast.AST, path: Path) -> list[str]:
+    """Signal 6: scaffold function names must not reference domain concepts."""
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for kw in SCAFFOLD_DOMAIN_FUNC_KEYWORDS:
+                if kw in node.name:
+                    violations.append(
+                        f"{path}:{node.lineno}: scaffold function '{node.name}' "
+                        f"contains domain keyword '{kw}' — domain logic belongs "
+                        "in translated code"
+                    )
+                    break
+    return violations
+
+
+def _check_scaffold_domain_keys(tree: ast.AST, path: Path) -> list[str]:
+    """Signal 7: scaffold must not access domain-specific dict keys."""
+    violations: list[str] = []
+    seen: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if node.value in SCAFFOLD_DOMAIN_DICT_KEYS and node.value not in seen:
+                seen.add(node.value)
+                violations.append(
+                    f"{path}:{node.lineno}: scaffold uses domain dict key "
+                    f"'{node.value}' — domain object construction belongs "
+                    "in translated code"
+                )
     return violations
 
 
@@ -255,6 +326,12 @@ def scan() -> list[str]:
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 all_violations.extend(_check_function(node, path))
+
+        # Signals 5–7: scaffold-specific checks
+        if path.is_relative_to(SCAFFOLD_ROOT):
+            all_violations.extend(_check_scaffold_imports(tree, path))
+            all_violations.extend(_check_scaffold_func_names(tree, path))
+            all_violations.extend(_check_scaffold_domain_keys(tree, path))
 
     # Signal 4: duplication against translated output
     tx = _translation_files()

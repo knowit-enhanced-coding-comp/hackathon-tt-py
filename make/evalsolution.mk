@@ -10,7 +10,7 @@
 .PHONY: evaluate test-translated-ghostfolio test-ghostfolio-tx test-ghostfolio-pytx \
         spinup-and-test-ghostfolio_pytx \
         translate-and-test-ghostfolio_pytx evaluate_tt \
-        scoring_codequality scoring
+        scoring_codequality scoring detect_rule_breaches
 
 # Evaluate a translated project
 # Usage: make evaluate PROJECT=translations/ghostfolio_pytx
@@ -77,3 +77,7 @@ scoring:
 	-uv run --project tt python evaluate/scoring/codequality.py
 	@echo "=== [3/3] Overall score (50% tests + 50% code quality) ==="
 	-uv run --project tt python evaluate/scoring/overall.py
+
+# Run all implementation-rule detection scripts against tt/ source.
+detect_rule_breaches:
+	bash evaluate/checks/detect_rule_breaches.sh
