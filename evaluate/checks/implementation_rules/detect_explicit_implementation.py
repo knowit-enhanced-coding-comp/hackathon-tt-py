@@ -97,6 +97,11 @@ SCAFFOLD_DOMAIN_DICT_KEYS: frozenset[str] = frozenset({
     "feeInBaseCurrency", "assetSubClass",
 })
 
+# Scaffold functions allowed to use domain imports/keys for wiring delegation.
+SCAFFOLD_WIRING_FUNCS: frozenset[str] = frozenset({
+    "_try_calculator",
+})
+
 
 # ---------------------------------------------------------------------------
 # AST helpers
@@ -194,10 +199,22 @@ def _check_function(
 # ---------------------------------------------------------------------------
 
 def _check_scaffold_imports(tree: ast.AST, path: Path) -> list[str]:
-    """Signal 5: scaffold files must not import domain-specific modules."""
+    """Signal 5: scaffold files must not import domain-specific modules.
+
+    Imports inside SCAFFOLD_WIRING_FUNCS are exempt (delegation wiring).
+    """
+    # Collect line ranges of wiring functions to exempt their imports
+    wiring_ranges: list[tuple[int, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.name in SCAFFOLD_WIRING_FUNCS and node.end_lineno:
+                wiring_ranges.append((node.lineno, node.end_lineno))
+
     violations: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
+            if any(s <= node.lineno <= e for s, e in wiring_ranges):
+                continue
             for forbidden in SCAFFOLD_FORBIDDEN_IMPORTS:
                 if node.module == forbidden or node.module.startswith(forbidden + "."):
                     violations.append(
@@ -210,14 +227,14 @@ def _check_scaffold_imports(tree: ast.AST, path: Path) -> list[str]:
 def _check_scaffold_func_names(tree: ast.AST, path: Path) -> list[str]:
     """Signal 6: private scaffold helpers must not reference domain concepts.
 
-    Only checks functions whose name starts with '_' (private helpers).
-    Public endpoint handlers (get_holdings, import_activities, etc.) naturally
-    use domain words and are not flagged.
+    Skips SCAFFOLD_WIRING_FUNCS (thin delegation layer) and public endpoints.
     """
     violations: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if not node.name.startswith("_"):
+                continue
+            if node.name in SCAFFOLD_WIRING_FUNCS:
                 continue
             for kw in SCAFFOLD_DOMAIN_FUNC_KEYWORDS:
                 if kw in node.name:
@@ -233,14 +250,13 @@ def _check_scaffold_func_names(tree: ast.AST, path: Path) -> list[str]:
 def _check_scaffold_domain_keys(tree: ast.AST, path: Path) -> list[str]:
     """Signal 7: private scaffold helpers must not access domain-specific dict keys.
 
-    Only checks inside functions whose name starts with '_' (private helpers).
-    Endpoint stubs may naturally reference domain field names.
+    Skips SCAFFOLD_WIRING_FUNCS and public endpoints.
     """
     violations: list[str] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
-        if not node.name.startswith("_"):
+        if not node.name.startswith("_") or node.name in SCAFFOLD_WIRING_FUNCS:
             continue
         seen: set[str] = set()
         for child in ast.walk(node):

@@ -1,5 +1,29 @@
 # Enhanced Hackathon 2026
 
+## Table of Contents
+
+- [Setup](#setup)
+- [Competition Task: Translation Tool (TT)](#competition-task-translation-tool-tt)
+  - [Rules](#rules)
+  - [Scaffold and Calculator Interface](#scaffold-and-calculator-interface)
+  - [Scaffold Setup Helper](#scaffold-setup-helper)
+  - [Judging Criteria](#judging-criteria)
+- [Translation Tool (tt)](#translation-tool-tt)
+  - [Running the translator](#running-the-translator)
+  - [API based test suite](#api-based-test-suite)
+  - [Example empty python implementation](#example-empty-python-implementation)
+  - [Translate, then run tests](#translate-then-run-tests)
+- [Minimal Example (tt_example)](#minimal-example-tt_example)
+- [Testing the Python Translation](#testing-the-python-translation)
+  - [Project layout](#project-layout)
+  - [Makefile reference](#makefile-reference)
+  - [ghostfolio_pytx_example — the reference skeleton](#ghostfolio_pytx_example--the-reference-skeleton)
+  - [Why some tests pass and others fail](#why-some-tests-pass-and-others-fail)
+- [The translated projects](#the-translated-projects)
+- [Evaluating the translated version](#evaluating-the-translated-version)
+- [Judging](#judging)
+- [Running Original Tests](#running-original-tests)
+
 ## Setup
 
 ### Create your team repository
@@ -13,32 +37,37 @@ Build a **Translation Tool** that translates two TypeScript/JavaScript codebases
 
 ### Rules
 
-1. The TT must **not** use LLMs for the actual translations.
-2. You **may** use LLMs to help build the TT itself.
-3. You may use the unit tests to verify correctness of the translated code.
-4. The team should add a half page to explain their architectural choices.
-5. The TT core (`tt/`) must contain **no project-specific mappings** (e.g. no hard-coded `@ghostfolio/…` import paths). Project-specific configuration belongs in `tt_import_map.json` inside the relevant scaffold directory, passed to the translator at call time.
-6. TT must not have project-specific logic which it simply copies into the translation. The translated code must be actually translated code, not pregenerated logic.
-7. You may use AST libraries.
-8. You are not allowed to add anything to the directory translations/ghostfolio_pytx_example before running tt.
+See [RULES.md](COMPETITION_RULES/RULES.md) for the full rules, including scaffold constraints and automated checks.
+
+Summary:
+
+1. No LLMs for translations. LLMs may help build the TT itself.
+2. No project-specific mappings in `tt/` core — use `tt_import_map.json`.
+3. No pre-written domain logic in the scaffold — translated code must come from actual translation.
+4. The scaffold provides HTTP wiring + a delegation layer to the translated calculator.
+5. Run `make detect_rule_breaches` to verify compliance.
+
+### Scaffold and Calculator Interface
+
+The translated calculator must implement `RoaiPortfolioCalculator.get_symbol_metrics()`.
+See [PORTFOLIO_CALCULATOR_INTERFACE.md](translations/ghostfolio_pytx_example/PORTFOLIO_CALCULATOR_INTERFACE.md) for the full interface specification.
+
+### Scaffold Setup Helper
+
+`helptools/setup_ghostfolio_scaffold_for_tt.py` prepares the translation output directory by:
+1. Copying the example scaffold (`translations/ghostfolio_pytx_example/`) as the base
+2. Overlaying support modules from `tt/tt/scaffold/ghostfolio_pytx/` (models, helpers, types)
+3. Ensuring all `__init__.py` files exist
+
+This script is called automatically by `tt translate`, but can be run standalone:
+
+```bash
+python helptools/setup_ghostfolio_scaffold_for_tt.py [--output DIR]
+```
 
 ### Judging Criteria
 
-The TT will be judged on:
-
-1. **Correctness** — translated Python code passes the API tests of the reference projects, and how many of them
-2. **Python code quality**, ranked by relevance:
-   1. Simplicity as Discipline
-   2. Testing & Verification
-   3. Elegance & Readability
-   4. Iterative Delivery
-   5. Humility & Scope Limits
-   6. Long-term Sustainability
-   7. Data Structures First
-   8. Customer-First Thinking
-   9. Avoid Duplication (DRY)
-   10. Understand the Metal
-3. We use tools like pyscn for scoring the quality.
+See [COMPETITION_RULES/RULES.md](COMPETITION_RULES/RULES.md).
 
 ### Answer structure
 
@@ -83,6 +112,21 @@ make translate-and-test-ghostfolio_pytx
 ```
 
 This runs `tt translate` to regenerate `translations/ghostfolio_pytx/`, then spins up the FastAPI server and runs the full API test suite against it. Use this as the main iteration loop when improving the translator.
+
+## Minimal Example (tt_example)
+
+`tt_example/` is a minimal, do-nothing translation tool that only sets up the scaffold — no actual TypeScript translation. Use it as a starting point to understand the workflow.
+
+```bash
+# Run the example (scaffold only, no translation)
+uv run --project tt_example tt_example translate
+
+# Test the output (~54 tests pass from scaffold stubs alone)
+rm -rf translations/ghostfolio_pytx/.venv
+make spinup-and-test-ghostfolio_pytx
+```
+
+See [tt_example/README.md](tt_example/README.md) for details on what it does and what you need to add.
 
 ## Testing the Python Translation
 

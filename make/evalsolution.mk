@@ -55,6 +55,7 @@ evaluate_tt:
 	rm -rf translations/ghostfolio_pytx
 	time uv run --project tt tt translate
 	@echo "=== [2/3] API tests + scoring against translated version ==="
+	rm -rf translations/ghostfolio_pytx/.venv
 	-bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
 	-bash projecttests/tools/kill_ghostfolio_pytx.sh
 	-bash projecttests/tools/start_ghostfolio_pytx.sh

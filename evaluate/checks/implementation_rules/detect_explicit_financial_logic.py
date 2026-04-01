@@ -90,14 +90,35 @@ def _collect_financial_var_names(
 
 
 def _has_nested_activity_loop(func: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    """Detect nested loops where inner loop iterates over activities or dates."""
+    """Detect nested statement-level for/while loops inside a function.
+
+    Nested loops in the scaffold are a strong signal of financial computation
+    that should live in the translated calculator instead:
+
+    - Chart/timeline generation iterates over dates (outer loop) and computes
+      per-symbol values (inner loop) — this is domain logic.
+    - Performance calculation iterates over activities (outer loop) and
+      accumulates per-symbol state (inner loop) — also domain logic.
+
+    Simple data-preparation patterns like list comprehensions and generator
+    expressions are NOT flagged — only actual ``for``/``while`` statements
+    nested inside other ``for``/``while`` statements.  This allows the
+    delegation layer (``_try_calculator``) to use comprehensions for building
+    the activity list and market-data map without triggering a false positive.
+    """
     for node in ast.walk(func):
-        if isinstance(node, (ast.For, ast.While)):
-            for child in ast.walk(node):
-                if child is node:
-                    continue
-                if isinstance(child, (ast.For, ast.While)):
-                    return True
+        if not isinstance(node, (ast.For, ast.While)):
+            continue
+        # ast.For/ast.While are always ast.stmt, but comprehension generators
+        # (inside ListComp, SetComp, GeneratorExp) are ast.comprehension nodes
+        # and will not match this isinstance check.
+        if not isinstance(node, ast.stmt):
+            continue
+        for child in ast.walk(node):
+            if child is node:
+                continue
+            if isinstance(child, (ast.For, ast.While)) and isinstance(child, ast.stmt):
+                return True
     return False
 
 
