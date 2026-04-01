@@ -37,7 +37,7 @@ Build a **Translation Tool** that translates two TypeScript/JavaScript codebases
 
 ### Rules
 
-See [RULES.md](COMPETITION_RULES/RULES.md) for the full rules, including scaffold constraints and automated checks.
+See [COMPETITION_RULES.md](COMPETITION_RULES.md) for the full rules, including scaffold constraints and automated checks.
 
 Summary:
 
@@ -67,7 +67,7 @@ python helptools/setup_ghostfolio_scaffold_for_tt.py [--output DIR]
 
 ### Judging Criteria
 
-See [COMPETITION_RULES/RULES.md](COMPETITION_RULES/RULES.md).
+See [COMPETITION_RULES.md](COMPETITION_RULES.md).
 
 ### Answer structure
 
@@ -121,12 +121,29 @@ This runs `tt translate` to regenerate `translations/ghostfolio_pytx/`, then spi
 # Run the example (scaffold only, no translation)
 uv run --project tt_example tt_example translate
 
-# Test the output (~54 tests pass from scaffold stubs alone)
+# Test the output
 rm -rf translations/ghostfolio_pytx/.venv
 make spinup-and-test-ghostfolio_pytx
+
+# Or use the evaluation target directly
+make evaluate_tt_example_ghostfolio
 ```
 
 See [tt_example/README.md](tt_example/README.md) for details on what it does and what you need to add.
+
+### Why tt_example already passes ~54/99 tests
+
+The scaffold alone — with zero TypeScript translation — passes over half the test suite. This is by design, and understanding *why* is key to approaching the competition effectively:
+
+1. **Cost-basis tracking in endpoint stubs** — The scaffold's `get_performance`, `get_holdings`, and `get_investments` endpoints compute `totalInvestment`, holdings quantities, and investment entries directly from the raw activity data using simple cost-basis arithmetic (BUY adds, SELL subtracts proportional cost). This covers all tests that only check investment values and holdings.
+
+2. **Zero-is-correct for closed positions** — When all shares are sold, `totalInvestment` correctly reaches zero through cost-basis subtraction. Many tests assert exactly this.
+
+3. **Structural correctness** — The scaffold returns properly shaped JSON responses for all endpoints (`chart`, `performance`, `investments`, `holdings`), so tests checking response structure or zero/empty values pass.
+
+4. **What the scaffold cannot do** — The ~45 failing tests require values that need the *translated calculator*: chart history with per-date market values, net performance (requires current prices), gross performance from sells, time-weighted investment calculations, and dividend/fee tracking. These require `RoaiPortfolioCalculator.get_symbol_metrics()` to actually work.
+
+The goal of the competition is to bridge this gap by making the translator produce a working Python calculator from the TypeScript source.
 
 ## Testing the Python Translation
 

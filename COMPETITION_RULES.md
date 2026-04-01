@@ -51,8 +51,8 @@ Run `make detect_rule_breaches` to verify compliance. The following checks are e
 
 The TT will be judged on:
 
-1. **Rule compliance** — the translation tool must not break the rules of [COMPETION_RULES.md](COMPETION_RULES.md).
-2. **Correctness** — translated Python code passes the API tests of the reference projects, and how many of them
+1. **Rule compliance** — the translation tool must not break the rules above.
+2. **Correctness** — translated Python code passes the API tests of the reference projects, and how many of them.
 3. **Python code quality**, ranked by relevance:
    1. Simplicity as Discipline
    2. Testing & Verification
@@ -64,4 +64,6 @@ The TT will be judged on:
    8. Customer-First Thinking
    9. Avoid Duplication (DRY)
    10. Understand the Metal
-3. We use tools like pyscn for scoring the quality.
+4. **Understanding** — judges will evaluate how well competitors understand what their translator actually does. Automated scoring will be balanced with human evaluation of architectural choices, trade-offs, and the team's ability to explain their approach. A high test score from a tool the team cannot explain will be weighted down.
+
+We use tools like pyscn for scoring the quality. Scoring: `make evaluate_tt` runs tests (50%) + code quality via pyscn (50%). Judge review adjusts the final score.

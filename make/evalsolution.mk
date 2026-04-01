@@ -10,6 +10,7 @@
 .PHONY: evaluate test-translated-ghostfolio test-ghostfolio-tx test-ghostfolio-pytx \
         spinup-and-test-ghostfolio_pytx \
         translate-and-test-ghostfolio_pytx evaluate_tt \
+        evaluate_tt_ghostfolio evaluate_tt_example_ghostfolio \
         scoring_codequality scoring detect_rule_breaches
 
 # Evaluate a translated project
@@ -46,14 +47,23 @@ translate-and-test-ghostfolio_pytx:
 	uv run --project tt tt translate
 	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
 
-# Full evaluation of the tt translator:
-#   1. Translate sources (timed) and verify no LLM is used
-#   2. Run API integration tests against the translated project
-#   3. Run the code quality check suite
+# ---------------------------------------------------------------------------
+# Full evaluation: translate → test → score → quality checks
+#
+# Usage:
+#   make evaluate_tt TT_PROJECT=tt PROJECT=ghostfolio
+#
+# TT_PROJECT: path to the translation tool package (default: tt)
+# PROJECT:    which project to translate (default: ghostfolio)
+# ---------------------------------------------------------------------------
+TT_PROJECT ?= tt
+PROJECT_NAME ?= ghostfolio
+
 evaluate_tt:
+	@echo "=== Evaluating TT=$(TT_PROJECT) PROJECT=$(PROJECT_NAME) ==="
 	@echo "=== [1/3] Translate (timed) ==="
 	rm -rf translations/ghostfolio_pytx
-	time uv run --project tt tt translate
+	time uv run --project $(TT_PROJECT) $(notdir $(TT_PROJECT)) translate
 	@echo "=== [2/3] API tests + scoring against translated version ==="
 	rm -rf translations/ghostfolio_pytx/.venv
 	-bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
@@ -63,6 +73,14 @@ evaluate_tt:
 	-bash projecttests/tools/kill_ghostfolio_pytx.sh
 	@echo "=== [3/3] Code quality checks ==="
 	-bash evaluate/checks/run_quality_checks.sh
+
+# Evaluate the real tt translator against ghostfolio
+evaluate_tt_ghostfolio:
+	$(MAKE) evaluate_tt TT_PROJECT=tt PROJECT_NAME=ghostfolio
+
+# Evaluate the minimal tt_example against ghostfolio (scaffold only, no translation)
+evaluate_tt_example_ghostfolio:
+	$(MAKE) evaluate_tt TT_PROJECT=tt_example PROJECT_NAME=ghostfolio
 
 # Run pyscn code quality scoring on translated code and tt itself.
 # Produces a weighted score (translated=80%, tt=20%) and writes JSON to
