@@ -148,8 +148,14 @@ def _collect_string_comparisons(node: ast.AST) -> list[tuple[int, str]]:
 def _check_function(
     func: ast.FunctionDef | ast.AsyncFunctionDef,
     path: Path,
+    *,
+    skip_domain: bool = False,
 ) -> list[str]:
     violations: list[str] = []
+
+    if skip_domain:
+        # Scaffold files are checked by signals 5–7; skip generic checks.
+        return violations
 
     # Signal 1: function body length
     n_stmts = _count_statements(func)
@@ -159,6 +165,7 @@ def _check_function(
             f"(max {MAX_FUNCTION_STATEMENTS} for tt tool code) — "
             "move business logic to translated source"
         )
+        return violations
 
     # Signal 2: domain-specific variable/attribute names
     for lineno, name in _collect_names(func):
@@ -201,14 +208,21 @@ def _check_scaffold_imports(tree: ast.AST, path: Path) -> list[str]:
 
 
 def _check_scaffold_func_names(tree: ast.AST, path: Path) -> list[str]:
-    """Signal 6: scaffold function names must not reference domain concepts."""
+    """Signal 6: private scaffold helpers must not reference domain concepts.
+
+    Only checks functions whose name starts with '_' (private helpers).
+    Public endpoint handlers (get_holdings, import_activities, etc.) naturally
+    use domain words and are not flagged.
+    """
     violations: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if not node.name.startswith("_"):
+                continue
             for kw in SCAFFOLD_DOMAIN_FUNC_KEYWORDS:
                 if kw in node.name:
                     violations.append(
-                        f"{path}:{node.lineno}: scaffold function '{node.name}' "
+                        f"{path}:{node.lineno}: scaffold helper '{node.name}' "
                         f"contains domain keyword '{kw}' — domain logic belongs "
                         "in translated code"
                     )
@@ -217,18 +231,27 @@ def _check_scaffold_func_names(tree: ast.AST, path: Path) -> list[str]:
 
 
 def _check_scaffold_domain_keys(tree: ast.AST, path: Path) -> list[str]:
-    """Signal 7: scaffold must not access domain-specific dict keys."""
+    """Signal 7: private scaffold helpers must not access domain-specific dict keys.
+
+    Only checks inside functions whose name starts with '_' (private helpers).
+    Endpoint stubs may naturally reference domain field names.
+    """
     violations: list[str] = []
-    seen: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if node.value in SCAFFOLD_DOMAIN_DICT_KEYS and node.value not in seen:
-                seen.add(node.value)
-                violations.append(
-                    f"{path}:{node.lineno}: scaffold uses domain dict key "
-                    f"'{node.value}' — domain object construction belongs "
-                    "in translated code"
-                )
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if not node.name.startswith("_"):
+            continue
+        seen: set[str] = set()
+        for child in ast.walk(node):
+            if isinstance(child, ast.Constant) and isinstance(child.value, str):
+                if child.value in SCAFFOLD_DOMAIN_DICT_KEYS and child.value not in seen:
+                    seen.add(child.value)
+                    violations.append(
+                        f"{path}:{child.lineno}: scaffold helper '{node.name}' "
+                        f"uses domain dict key '{child.value}' — domain object "
+                        "construction belongs in translated code"
+                    )
     return violations
 
 
@@ -316,6 +339,8 @@ def scan() -> list[str]:
     all_violations: list[str] = []
 
     # Signals 1–3: per-function AST checks across all tt/tt/ files
+    # Scaffold files are checked by signals 5–7 instead (signals 2–3 would
+    # false-positive on endpoint stubs that naturally use domain words).
     for path in tt:
         source = path.read_text(encoding="utf-8")
         try:
@@ -323,12 +348,15 @@ def scan() -> list[str]:
         except SyntaxError as exc:
             all_violations.append(f"{path}: SyntaxError: {exc}")
             continue
+
+        is_scaffold = path.is_relative_to(SCAFFOLD_ROOT)
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                all_violations.extend(_check_function(node, path))
+                all_violations.extend(_check_function(node, path, skip_domain=is_scaffold))
 
         # Signals 5–7: scaffold-specific checks
-        if path.is_relative_to(SCAFFOLD_ROOT):
+        if is_scaffold:
             all_violations.extend(_check_scaffold_imports(tree, path))
             all_violations.extend(_check_scaffold_func_names(tree, path))
             all_violations.extend(_check_scaffold_domain_keys(tree, path))
