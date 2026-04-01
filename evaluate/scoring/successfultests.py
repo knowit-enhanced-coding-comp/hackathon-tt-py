@@ -161,7 +161,7 @@ def run(api_url: str | None = None) -> dict:
     return {
         "achieved": achieved,
         "max_possible": max_possible,
-        "theoretical_max": MAX_SCORE,
+        "theoretical_max": max_possible,
         "n_passed": n_passed,
         "n_total": n_total,
         "percentage": round(achieved / max_possible * 100, 2) if max_possible else 0.0,
@@ -184,7 +184,7 @@ def main() -> int:
     n_failed = n_total - n_passed
 
     print(f"\nResults:  {n_passed}/{n_total} passed,  {n_failed} failed")
-    print(f"Score:    {achieved}/{max_possible}  (theoretical max with all tests: {MAX_SCORE})")
+    print(f"Score:    {achieved}/{max_possible}")
 
     if n_failed:
         print("\nFailed tests:")

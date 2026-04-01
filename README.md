@@ -18,7 +18,8 @@ Build a **Translation Tool** that translates two TypeScript/JavaScript codebases
 3. You may use the unit tests to verify correctness of the translated code.
 4. The team should add a half page to explain their architectural choices.
 5. The TT core (`tt/`) must contain **no project-specific mappings** (e.g. no hard-coded `@ghostfolio/…` import paths). Project-specific configuration belongs in `tt_import_map.json` inside the relevant scaffold directory, passed to the translator at call time.
-6. You may use AST libraries.
+6. TT must not have project-specific logic which it simply copies into the translation. The translated code must be actually translated code, not pregenerated logic.
+7. You may use AST libraries.
 
 ### Judging Criteria
 

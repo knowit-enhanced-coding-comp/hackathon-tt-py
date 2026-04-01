@@ -128,6 +128,11 @@ stop_server() {
   if kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
   fi
+  # Also kill any other process that may have grabbed the port
+  PIDS="$(lsof -ti:"$PORT" 2>/dev/null)"
+  if [ -n "$PIDS" ]; then
+    echo "$PIDS" | xargs kill 2>/dev/null || true
+  fi
 }
 trap stop_server EXIT
 

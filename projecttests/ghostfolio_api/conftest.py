@@ -23,13 +23,14 @@ from .client import GhostfolioClient
 
 @pytest.fixture(scope="session")
 def api_url() -> str:
-    return os.environ.get("GHOSTFOLIO_API_URL", "http://localhost:3333")
+    return os.environ.get("GHOSTFOLIO_API_URL", "http://localhost:3335")
 
 
 @pytest.fixture
 def gf(api_url: str):
     """Create a fresh Ghostfolio user, yield (client, access_token), then delete the user."""
     client = GhostfolioClient(api_url)
+    print("conftest.py:" + repr(33) + ":api_url:" + repr(api_url))
     access_token, auth_token = client.create_user()
     client.set_auth(auth_token)
     yield client, access_token

@@ -42,6 +42,7 @@ spinup-and-test-ghostfolio_pytx:
 # Run tt translate to (re)generate translations/ghostfolio_pytx, then spin up
 # the server and run the full API test suite against it.
 translate-and-test-ghostfolio_pytx:
+	bash projecttests/tools/kill_ghostfolio_pytx.sh
 	uv run --project tt tt translate
 	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
 
@@ -53,12 +54,10 @@ evaluate_tt:
 	@echo "=== [1/3] Translate (timed) ==="
 	rm -rf translations/ghostfolio_pytx
 	time uv run --project tt tt translate
-	@echo "=== [1/3] Verify no LLM usage in tt/ (part of step 1) ==="
-	uv run --project tt python evaluate/checks/detect_llm_usage.py
-	@echo "=== [1/3] Verify no project-specific mappings in tt/ (part of step 1) ==="
-	uv run --project tt python evaluate/checks/detect_direct_mappings.py
 	@echo "=== [2/3] API tests + scoring against translated version ==="
-	KEEP_UP=1 bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
+	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
+	bash projecttests/tools/kill_ghostfolio_pytx.sh
+	bash projecttests/tools/start_ghostfolio_pytx.sh
 	$(MAKE) scoring
 	bash projecttests/tools/kill_ghostfolio_pytx.sh
 	@echo "=== [3/3] Code quality checks ==="

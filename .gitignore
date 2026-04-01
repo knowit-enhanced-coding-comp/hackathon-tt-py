@@ -55,3 +55,25 @@ Thumbs.db
 
 # Scoring
 evaluate/scoring/results/
+
+# Node / TypeScript / JavaScript
+**/node_modules/
+**/.npm/
+**/dist/
+**/build/
+**/.next/
+**/.nuxt/
+**/.output/
+**/out/
+**/.turbo/
+**/.cache/
+**/coverage/
+**/.nyc_output/
+**/*.tsbuildinfo
+**/.tsbuildinfo
+**/tsconfig.tsbuildinfo
+**/.eslintcache
+**/.parcel-cache/
+**/pnpm-lock.yaml
+**/yarn.lock
+**/package-lock.json
