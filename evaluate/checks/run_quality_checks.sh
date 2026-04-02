@@ -42,6 +42,7 @@ run_check "Explicit implementation"     "$RULES_DIR/detect_explicit_implementati
 run_check "Financial logic in scaffold" "$RULES_DIR/detect_explicit_financial_logic.py"
 run_check "Scaffold bloat"              "$RULES_DIR/detect_scaffold_bloat.py"
 run_check "Code block copying"          "$RULES_DIR/detect_code_block_copying.py"
+run_check "Interface compliance"        "$RULES_DIR/detect_interface_violation.py"
 
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   run_check "Explicit implementation LLM review" "$RULES_DIR/detect_explicit_implementation_llm.py"

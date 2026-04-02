@@ -37,6 +37,7 @@ test-ghostfolio-pytx:
 # Set PYTX_PORT to change the port (default: 3335)
 spinup-and-test-ghostfolio_pytx:
 	bash projecttests/tools/kill_ghostfolio_pytx.sh
+	rm -rf translations/ghostfolio_pytx/.venv
 	bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
 	bash projecttests/tools/kill_ghostfolio_pytx.sh
 
