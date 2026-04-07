@@ -1,8 +1,7 @@
-"""Data models used by the portfolio calculator."""
+"""Mirrors portfolio-order.interface.ts."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
 
 
 @dataclass
@@ -12,10 +11,10 @@ class SymbolProfile:
 
 
 @dataclass
-class PortfolioOrderItem:
+class PortfolioOrder:
     date: str
-    fee: Decimal
-    quantity: Decimal
+    fee: float
+    quantity: float
     symbol_profile: SymbolProfile
-    type: str
-    unit_price: Decimal
+    type: str  # BUY | SELL | DIVIDEND | FEE | LIABILITY
+    unit_price: float
