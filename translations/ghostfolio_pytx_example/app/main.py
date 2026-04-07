@@ -1,9 +1,9 @@
 """
-Ghostfolio pytx — FastAPI entry point.
+Ghostfolio pytx example — FastAPI entry point.
 
-The scaffold provides HTTP endpoints that delegate portfolio calculations to
-the translated calculator. See PORTFOLIO_CALCULATOR_INTERFACE.md for the
-interface contract that the translated code must implement.
+Reference skeleton showing the expected project structure. The ROAI
+calculator is a stub that returns zero/empty values, so value-based
+test assertions will fail, but all endpoints run without errors.
 """
 from __future__ import annotations
 
@@ -15,10 +15,12 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
+from .portfolio.portfolio_controller import create_portfolio_router
+
 app = FastAPI(title="Ghostfolio pytx")
 
 # ---------------------------------------------------------------------------
-# In-memory store
+# In-memory store (mirrors Prisma user/account persistence)
 # ---------------------------------------------------------------------------
 
 @dataclass
@@ -50,71 +52,9 @@ def _get_user(authorization: str | None = Header(default=None)) -> UserState:
     return user
 
 
-# Translated calculator delegation
-# ---------------------------------------------------------------------------
-
-
-def _try_calculator(user: UserState) -> dict | None:
-    """Call translated calculator for all symbols; return {sym: metrics} or None."""
-    try:
-        from apps.api.src.app.portfolio.calculator.roai.portfolio_calculator import (
-            RoaiPortfolioCalculator,
-        )
-        from app.models import PortfolioOrderItem, SymbolProfile
-        from decimal import Decimal
-        from datetime import date as D, timedelta
-
-        calc = RoaiPortfolioCalculator()
-        calc.activities = [
-            PortfolioOrderItem(
-                date=a["date"],
-                fee=Decimal(str(a.get("fee") or 0)),
-                quantity=Decimal(str(a.get("quantity") or 0)),
-                symbol_profile=SymbolProfile(
-                    symbol=a.get("symbol", ""),
-                    data_source=a.get("dataSource", "YAHOO"),
-                ),
-                type=a.get("type", "BUY"),
-                unit_price=Decimal(str(a.get("unitPrice") or 0)),
-            )
-            for a in user.activities
-        ]
-
-        mmap: dict[str, dict[str, Decimal]] = {}
-        for p, sym in (
-            (p, sym) for ds in user.market_data.values() for sym, ps in ds.items() for p in ps
-        ):
-            mmap.setdefault(p["date"], {})[sym] = Decimal(str(p["marketPrice"]))
-        today = D.today().isoformat()
-        mmap.setdefault(today, {})
-
-        all_dates = sorted(mmap)
-        chart_map = {d: True for d in all_dates}
-        ex_rates = {d: 1.0 for d in all_dates}
-
-        first = min(a["date"] for a in user.activities)
-        start = D.fromisoformat(first) - timedelta(days=1)
-        symbols = list({a.get("symbol") for a in user.activities if a.get("symbol")})
-
-        results: dict[str, dict] = {}
-        for sym in symbols:
-            ds = next((a["dataSource"] for a in user.activities if a.get("symbol") == sym), "YAHOO")
-            m = calc.get_symbol_metrics(
-                chart_date_map=chart_map, data_source=ds, end=D.today(),
-                exchange_rates=ex_rates, market_symbol_map=mmap,
-                start=start, symbol=sym,
-            )
-            if m is not None:
-                results[sym] = m if isinstance(m, dict) else vars(m)
-        return results
-    except Exception:
-        return None
-
-
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
-
 
 @app.get("/api/v1/health")
 def health() -> dict:
@@ -122,9 +62,8 @@ def health() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# User lifecycle
+# User lifecycle (mirrors user.controller.ts)
 # ---------------------------------------------------------------------------
-
 
 @app.post("/api/v1/user")
 def create_user() -> dict:
@@ -153,9 +92,8 @@ def delete_user(body: dict[str, Any], user: UserState = Depends(_get_user)) -> J
 
 
 # ---------------------------------------------------------------------------
-# Activities import & market data seeding
+# Activities (mirrors activities.controller.ts)
 # ---------------------------------------------------------------------------
-
 
 @app.post("/api/v1/import")
 async def import_activities(request: Request, user: UserState = Depends(_get_user)) -> dict:
@@ -164,6 +102,10 @@ async def import_activities(request: Request, user: UserState = Depends(_get_use
     user.activities.extend(activities)
     return {"activities": activities}
 
+
+# ---------------------------------------------------------------------------
+# Market data seeding (mirrors market-data endpoints)
+# ---------------------------------------------------------------------------
 
 @app.post("/api/v1/market-data/{data_source}/{symbol}")
 async def seed_market_data(
@@ -175,57 +117,7 @@ async def seed_market_data(
 
 
 # ---------------------------------------------------------------------------
-# Portfolio — performance (v2)
+# Portfolio module (mirrors portfolio.module.ts)
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v2/portfolio/performance")
-def get_performance(range: str = "max", user: UserState = Depends(_get_user)) -> dict:
-    """Delegate to translated calculator, fall back to zeros."""
-    calc = _try_calculator(user) if user.activities else None
-    ti = sum(float(m.get("total_investment", 0)) for m in calc.values()) if calc else 0.0
-    gp = sum(float(m.get("gross_performance", 0)) for m in calc.values()) if calc else 0.0
-    fees = sum(float(m.get("fees_with_currency_effect", 0)) for m in calc.values()) if calc else 0.0
-    net = gp - fees
-    cv = sum(
-        float(v) for m in calc.values() for v in (m.get("current_values") or {}).values()
-    ) if calc else 0.0
-    twi = sum(float(m.get("time_weighted_investment", 0)) for m in calc.values()) if calc else 0.0
-    denom = twi if twi > 1e-10 else (ti if abs(ti) > 1e-10 else 1.0)
-    pct = net / denom if abs(denom) > 1e-10 else 0.0
-    return {
-        "chart": [],
-        "firstOrderDate": user.activities[0]["date"] if user.activities else None,
-        "performance": {
-            "currentNetWorth": cv,
-            "currentValue": cv,
-            "currentValueInBaseCurrency": cv,
-            "netPerformance": net,
-            "netPerformancePercentage": pct,
-            "netPerformancePercentageWithCurrencyEffect": pct,
-            "netPerformanceWithCurrencyEffect": net,
-            "totalFees": fees,
-            "totalInvestment": ti,
-            "totalLiabilities": 0.0,
-            "totalValueables": 0.0,
-        },
-    }
-
-
-# ---------------------------------------------------------------------------
-# Portfolio — investments (v1)
-# ---------------------------------------------------------------------------
-
-@app.get("/api/v1/portfolio/investments")
-def get_investments(range: str = "max", groupBy: str | None = None, user: UserState = Depends(_get_user)) -> dict:
-    """Stub: returns empty investments list."""
-    return {"investments": []}
-
-
-# ---------------------------------------------------------------------------
-# Portfolio — holdings (v1)
-# ---------------------------------------------------------------------------
-
-@app.get("/api/v1/portfolio/holdings")
-def get_holdings(range: str = "max", user: UserState = Depends(_get_user)) -> dict:
-    """Stub: returns empty holdings dict."""
-    return {"holdings": {}}
+app.include_router(create_portfolio_router(_get_user))
