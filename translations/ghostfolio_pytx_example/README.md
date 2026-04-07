@@ -19,6 +19,101 @@ It serves as a comparison baseline: run the test suite against this example to s
 which tests pass with a minimal correct-structure implementation, then compare
 against the `tt`-translated output in `translations/ghostfolio_pytx/`.
 
+## Project structure
+
+The structure mirrors the original Ghostfolio TypeScript project under
+`projects/ghostfolio/apps/api/src/app/`:
+
+```
+app/
+├── main.py                                  # main.ts + app.module.ts
+│                                            #   App bootstrap, auth, user lifecycle,
+│                                            #   activity import, market data seeding,
+│                                            #   and router wiring.
+│
+├── portfolio/                               # portfolio/ module
+│   ├── portfolio_controller.py              # portfolio.controller.ts
+│   │                                        #   HTTP routes (FastAPI APIRouter).
+│   │
+│   ├── portfolio_service.py                 # portfolio.service.ts
+│   │                                        #   Orchestration: coordinates the
+│   │                                        #   calculator and rate service to build
+│   │                                        #   performance, investments, holdings,
+│   │                                        #   and chart responses.
+│   │
+│   ├── current_rate_service.py              # current-rate.service.ts
+│   │                                        #   Market price lookups (exact date,
+│   │                                        #   latest, nearest earlier date).
+│   │
+│   ├── calculator/                          # calculator/
+│   │   ├── portfolio_calculator.py          # portfolio-calculator.ts
+│   │   │                                    #   Abstract base class defining the
+│   │   │                                    #   compute() / get_symbol_metrics()
+│   │   │                                    #   interface.
+│   │   │
+│   │   └── roai/                            # calculator/roai/
+│   │       └── portfolio_calculator.py      # portfolio-calculator.ts (ROAI)
+│   │                                        #   ** STUB ** — returns zero/empty
+│   │                                        #   values. This is the ONLY file that
+│   │                                        #   tt needs to replace with a real
+│   │                                        #   implementation.
+│   │
+│   └── interfaces/                          # interfaces/
+│       ├── portfolio_order.py               # portfolio-order.interface.ts
+│       ├── portfolio_order_item.py          # portfolio-order-item.interface.ts
+│       ├── transaction_point.py             # transaction-point-symbol.interface.ts
+│       └── symbol_metrics.py               # Return type of getSymbolMetrics
+```
+
+## How tt should use this scaffold
+
+The `tt` translator should:
+
+1. **Copy the entire `ghostfolio_pytx_example/` tree** into
+   `translations/ghostfolio_pytx/`, preserving the full directory structure.
+
+2. **Replace only `app/portfolio/calculator/roai/portfolio_calculator.py`** with a
+   real ROAI implementation translated from the original TypeScript source at
+   `projects/ghostfolio/apps/api/src/app/portfolio/calculator/roai/portfolio-calculator.ts`.
+
+3. **Do not alter any other file in the scaffold.** The controller, service,
+   rate service, interfaces, and `main.py` are all correct and complete. They
+   delegate all computation to the ROAI calculator, so replacing that single
+   file is sufficient to make all tests pass.
+
+The stub calculator in this example has the correct interface but returns
+zero/empty values. A correct implementation needs to:
+
+- Process BUY/SELL/DIVIDEND/FEE/LIABILITY activities chronologically
+- Track per-symbol quantity, investment (cost basis), average price
+- Compute realized P&L on sells using average cost
+- Handle short selling (SELL before BUY) and short covering
+- Record investment deltas per date for the investments endpoint
+- Accumulate total fees
+
+The result dict returned by `compute()` must have this shape:
+
+```python
+{
+    "symbols": {
+        "SYMBOL": {
+            "quantity": float,       # net shares held
+            "investment": float,     # remaining cost basis
+            "avg_price": float,      # weighted average cost per share
+            "total_buy_cost": float, # cumulative BUY cost (TWI denominator)
+            "realized_pnl": float,   # realized profit/loss from sells
+        },
+        ...
+    },
+    "investment_deltas": [
+        {"date": "YYYY-MM-DD", "investment": float, "symbol": "SYM"},
+        ...
+    ],
+    "total_fees": float,
+    "sorted_activities": [...],  # activities sorted by (date, type)
+}
+```
+
 ## Running the tests
 
 ```bash
@@ -37,7 +132,8 @@ PYTX_EXAMPLE_PORT=3335 make spinup-and-test-ghostfolio_pytx_example
 
 ## Why some tests pass and others fail
 
-See the main `README.md` section "Testing the Python Translation: ghostfolio_pytx"
-for a full explanation of which tests pass (empty stubs, simple buy-sell formula,
-accessibility-only assertions) and which fail (chart history, current value,
-holdings, grouped investments, cost-basis tracking).
+With the stub calculator, tests that only check structural correctness (endpoint
+responds, keys exist, empty portfolio returns zeros) will pass. Tests that assert
+on computed values (performance metrics, investment amounts, holdings quantities)
+will fail because the stub returns zeros. Replacing the ROAI calculator with a
+real implementation makes all 99 tests pass.
