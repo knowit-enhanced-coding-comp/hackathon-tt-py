@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [What is the task to solve in this competition?](#what-is-the-task-to-solve-in-this-competition)
 - [Setup](#setup)
 - [Competition Task: Translation Tool (TT)](#competition-task-translation-tool-tt)
   - [Rules](#rules)
@@ -23,6 +24,12 @@
 - [Evaluating the translated version](#evaluating-the-translated-version)
 - [Judging](#judging)
 - [Running Original Tests](#running-original-tests)
+
+## What is the task to solve in this competition?
+
+The goal of this hackathon is to build a typescript-to-python translation tool `tt`. It should translate part of `ghostfolio`, an open source wealth management software from typescript to python. The tool cannot use LLMs, but tt itself can be developed with LLMs (Claude Code etc).
+
+The python project produced by tt, called `ghostfolio-pytx` will be evaluated by a test suite, to check how much of ghostfolio it successfully implements. We will also judge the code quality of `tt` and `ghostfolio-pytx` with a set of evaluations, triggered by `make evaluate_tt_ghostfolio`.
 
 ## Setup
 
