@@ -106,17 +106,15 @@ evaluate-tt-arquero:
 	uv run --project tt python evaluate/scoring/codequality.py \
 		translations/arquero_pytx tt/tt
 
-# Evaluate the arquero translation: spin up, run API tests, score, check rules.
-# Uses existing translations/arquero_pytx/ if present, otherwise sets up scaffold.
+# Evaluate the real tt translator against arquero.
+# Translates with tt, spins up the output, runs API tests, scores, checks rules.
 evaluate_tt_arquero:
-	@echo "=== Evaluating Arquero translation ==="
-	@echo "=== [1/4] Ensure translations/arquero_pytx exists ==="
-	@if [ ! -d translations/arquero_pytx/app ]; then \
-		echo "  No existing translation found — setting up scaffold"; \
-		python helptools/setup_arquero_scaffold_for_tt.py; \
-	else \
-		echo "  Using existing translations/arquero_pytx"; \
-	fi
+	@echo "=== Evaluating tt translator against Arquero ==="
+	@echo "=== [1/4] Translate (timed) ==="
+	rm -rf translations/arquero_pytx
+	time uv run --project tt tt translate \
+		--source-dir projects/arquero/src \
+		--output translations/arquero_pytx
 	@echo "=== [2/4] API tests + scoring ==="
 	rm -rf translations/arquero_pytx/.venv
 	-bash projecttests/tools/kill_arquero_pytx.sh

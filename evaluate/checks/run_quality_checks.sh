@@ -48,6 +48,7 @@ run_check "Scaffold bloat"              "$RULES_DIR/detect_scaffold_bloat.py"
 run_check "Code block copying"          "$RULES_DIR/detect_code_block_copying.py"
 run_check "Interface compliance"        "$RULES_DIR/detect_interface_violation.py"
 run_check "Wrapper modification"        "$RULES_DIR/detect_wrapper_modification.py"
+run_check "Evaluate folder unchanged"  "$RULES_DIR/detect_evaluate_modification.py"
 
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
   run_check "Explicit implementation LLM review" "$RULES_DIR/detect_explicit_implementation_llm.py"
