@@ -9,9 +9,10 @@
 # ---------------------------------------------------------------------------
 .PHONY: install-arquero-api spinup-and-test-arquero test-arquero-api kill-arquero \
         evaluate_arquero translate-arquero evaluate-tt-arquero \
+        evaluate_tt_arquero evaluate_tt_example_arquero \
         translate-and-test-arquero_pytx spinup-and-test-arquero_pytx \
         test-arquero-tx test-arquero-pytx test-translated-arquero kill-arquero-pytx \
-        spinup-and-test-arquero_pytx_example
+        spinup-and-test-arquero_pytx_example setup-arquero-scaffold
 
 # Install npm dependencies for arquero and the Arquero API server
 install-arquero-api:
@@ -89,6 +90,10 @@ test-translated-arquero:
 spinup-and-test-arquero_pytx_example:
 	bash projecttests/tools/spinup_and_test_arquero_pytx_example.sh
 
+# Set up the Arquero scaffold for tt translation
+setup-arquero-scaffold:
+	python helptools/setup_arquero_scaffold_for_tt.py
+
 # ---------------------------------------------------------------------------
 # Original Arquero API (Node.js) — evaluation targets
 # ---------------------------------------------------------------------------
@@ -100,6 +105,42 @@ evaluate-tt-arquero:
 	@echo "=== [2/2] Code quality scoring ==="
 	uv run --project tt python evaluate/scoring/codequality.py \
 		translations/arquero_pytx tt/tt
+
+# Evaluate the arquero translation: spin up, run API tests, score, check rules.
+# Uses existing translations/arquero_pytx/ if present, otherwise sets up scaffold.
+evaluate_tt_arquero:
+	@echo "=== Evaluating Arquero translation ==="
+	@echo "=== [1/4] Ensure translations/arquero_pytx exists ==="
+	@if [ ! -d translations/arquero_pytx/app ]; then \
+		echo "  No existing translation found — setting up scaffold"; \
+		python helptools/setup_arquero_scaffold_for_tt.py; \
+	else \
+		echo "  Using existing translations/arquero_pytx"; \
+	fi
+	@echo "=== [2/4] API tests + scoring ==="
+	rm -rf translations/arquero_pytx/.venv
+	-bash projecttests/tools/kill_arquero_pytx.sh
+	-bash projecttests/tools/spinup_and_test_arquero_pytx.sh
+	-bash projecttests/tools/kill_arquero_pytx.sh
+	-bash projecttests/tools/start_arquero_pytx.sh
+	-PROJECT_NAME=arquero $(MAKE) scoring
+	-bash projecttests/tools/kill_arquero_pytx.sh
+	@echo "=== [3/4] Code quality checks ==="
+	-PROJECT_NAME=arquero bash evaluate/checks/run_quality_checks.sh
+	@echo "=== [4/4] Rule breach detection ==="
+	-PROJECT_NAME=arquero bash evaluate/checks/detect_rule_breaches.sh
+
+# Evaluate the minimal example scaffold against arquero (no translation)
+# Sets up the scaffold from arquero_pytx_example, spins up, and runs API tests.
+evaluate_tt_example_arquero:
+	@echo "=== Evaluating example scaffold against Arquero ==="
+	@echo "=== [1/2] Set up scaffold ==="
+	python helptools/setup_arquero_scaffold_for_tt.py
+	@echo "=== [2/2] API tests against scaffold ==="
+	rm -rf translations/arquero_pytx/.venv
+	-bash projecttests/tools/kill_arquero_pytx.sh
+	-bash projecttests/tools/spinup_and_test_arquero_pytx.sh
+	-bash projecttests/tools/kill_arquero_pytx.sh
 
 # Full evaluation of the Arquero API:
 #   1. Install/sync dependencies

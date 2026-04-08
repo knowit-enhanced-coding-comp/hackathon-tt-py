@@ -18,12 +18,14 @@ Usage:
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 TT_ROOT = PROJECT_ROOT / "tt" / "tt"
-TRANSLATION_ROOT = PROJECT_ROOT / "translations" / "ghostfolio_pytx"
+_PROJECT = os.environ.get("PROJECT_NAME", "ghostfolio")
+TRANSLATION_ROOT = PROJECT_ROOT / "translations" / f"{_PROJECT}_pytx"
 
 # Minimum number of contiguous matching lines to flag as a copied block.
 MIN_BLOCK_LINES = 10

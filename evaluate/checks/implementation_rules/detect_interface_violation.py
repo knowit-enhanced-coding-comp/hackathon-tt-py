@@ -19,11 +19,13 @@ Usage:
 from __future__ import annotations
 
 import ast
+import os
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-SCAFFOLD_MAIN = PROJECT_ROOT / "tt" / "tt" / "scaffold" / "ghostfolio_pytx" / "app" / "main.py"
+_PROJECT = os.environ.get("PROJECT_NAME", "ghostfolio")
+SCAFFOLD_MAIN = PROJECT_ROOT / "tt" / "tt" / "scaffold" / f"{_PROJECT}_pytx" / "app" / "main.py"
 
 # The SymbolMetrics keys that the scaffold may read from calculator results
 # (snake_case versions of the TypeScript SymbolMetrics interface)
@@ -141,7 +143,8 @@ def _check_metrics_key_usage(tree: ast.AST, path: Path) -> list[str]:
 
 def scan() -> list[str]:
     if not SCAFFOLD_MAIN.exists():
-        return [f"Scaffold main.py not found: {SCAFFOLD_MAIN}"]
+        # No scaffold for this project yet — nothing to check
+        return []
 
     source = SCAFFOLD_MAIN.read_text(encoding="utf-8")
     try:

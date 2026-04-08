@@ -161,10 +161,13 @@ MAX_SCORE = sum(SCORES.values())
 def run_pytest(repo_root: Path, api_url: str) -> list[tuple[str, bool]]:
     """Run pytest -v and return list of (test_name, passed)."""
     import os
-    env = {**os.environ, "GHOSTFOLIO_API_URL": api_url}
+    project = os.environ.get("PROJECT_NAME", "ghostfolio")
+    env_var = f"{project.upper()}_API_URL"
+    test_dir = f"{project}_api"
+    env = {**os.environ, env_var: api_url}
     cmd = [
         "uv", "run", "--project", str(repo_root / "tt"),
-        "pytest", str(repo_root / "projecttests" / "ghostfolio_api"),
+        "pytest", str(repo_root / "projecttests" / test_dir),
         "-v", "--tb=no", "--no-header",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=repo_root, env=env)
@@ -191,11 +194,19 @@ def score(results: list[tuple[str, bool]]) -> tuple[int, int, int, int]:
     return achieved, max_possible, sum(1 for _, p in results if p), len(results)
 
 
+_PROJECT_DEFAULTS: dict[str, tuple[str, str]] = {
+    "ghostfolio": ("GHOSTFOLIO_API_URL", "http://localhost:3335"),
+    "arquero": ("ARQUERO_API_URL", "http://localhost:3338"),
+}
+
+
 def run(api_url: str | None = None) -> dict:
     """Return scoring result dict for use by other scripts."""
     import os
     repo_root = Path(__file__).parent.parent.parent.resolve()
-    api_url = api_url or os.environ.get("GHOSTFOLIO_API_URL", "http://localhost:3335")
+    project = os.environ.get("PROJECT_NAME", "ghostfolio")
+    env_var, default_url = _PROJECT_DEFAULTS.get(project, (f"{project.upper()}_API_URL", "http://localhost:3335"))
+    api_url = api_url or os.environ.get(env_var, default_url)
     results = run_pytest(repo_root, api_url)
     if not results:
         return {"error": "no test results collected", "score": 0, "max_score": MAX_SCORE, "percentage": 0.0}
@@ -213,7 +224,9 @@ def run(api_url: str | None = None) -> dict:
 def main() -> int:
     import os
     repo_root = Path(__file__).parent.parent.parent.resolve()
-    api_url = os.environ.get("GHOSTFOLIO_API_URL", "http://localhost:3335")
+    project = os.environ.get("PROJECT_NAME", "ghostfolio")
+    env_var, default_url = _PROJECT_DEFAULTS.get(project, (f"{project.upper()}_API_URL", "http://localhost:3335"))
+    api_url = os.environ.get(env_var, default_url)
 
     print(f"Scoring tests against {api_url} ...")
     results = run_pytest(repo_root, api_url)

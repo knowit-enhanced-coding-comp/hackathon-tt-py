@@ -34,6 +34,7 @@ Usage:
 from __future__ import annotations
 
 import ast
+import os
 import sys
 from pathlib import Path
 
@@ -44,7 +45,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 TT_ROOT = PROJECT_ROOT / "tt" / "tt"
 SCAFFOLD_ROOT = TT_ROOT / "scaffold"
-TRANSLATION_ROOT = PROJECT_ROOT / "translations" / "ghostfolio_pytx"
+_PROJECT = os.environ.get("PROJECT_NAME", "ghostfolio")
+TRANSLATION_ROOT = PROJECT_ROOT / "translations" / f"{_PROJECT}_pytx"
 
 # Functions with more than this many statements are considered non-stub
 MAX_FUNCTION_STATEMENTS = 30

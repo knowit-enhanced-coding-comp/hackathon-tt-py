@@ -88,7 +88,9 @@ def run(
     tt_path: Path | None = None,
 ) -> dict:
     """Score both targets and return a combined result dict."""
-    translated_path = translated_path or (REPO_ROOT / "translations" / "ghostfolio_pytx")
+    import os
+    _project = os.environ.get("PROJECT_NAME", "ghostfolio")
+    translated_path = translated_path or (REPO_ROOT / "translations" / f"{_project}_pytx")
     tt_path = tt_path or (REPO_ROOT / "tt" / "tt")
 
     translated = _run_pyscn(translated_path)

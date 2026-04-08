@@ -70,10 +70,10 @@ evaluate_tt:
 	-bash projecttests/tools/spinup_and_test_ghostfolio_pytx.sh
 	-bash projecttests/tools/kill_ghostfolio_pytx.sh
 	-bash projecttests/tools/start_ghostfolio_pytx.sh
-	-$(MAKE) scoring
+	-PROJECT_NAME=ghostfolio $(MAKE) scoring
 	-bash projecttests/tools/kill_ghostfolio_pytx.sh
 	@echo "=== [3/3] Code quality checks ==="
-	-bash evaluate/checks/run_quality_checks.sh
+	-PROJECT_NAME=ghostfolio bash evaluate/checks/run_quality_checks.sh
 
 # Evaluate the real tt translator against ghostfolio
 evaluate_tt_ghostfolio:

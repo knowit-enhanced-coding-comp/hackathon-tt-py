@@ -10,13 +10,15 @@ Exits non-zero if any wrapper file or main.py has been modified.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 
-PYTX_DIR = PROJECT_ROOT / "translations" / "ghostfolio_pytx"
-EXAMPLE_DIR = PROJECT_ROOT / "translations" / "ghostfolio_pytx_example"
+_PROJECT = os.environ.get("PROJECT_NAME", "ghostfolio")
+PYTX_DIR = PROJECT_ROOT / "translations" / f"{_PROJECT}_pytx"
+EXAMPLE_DIR = PROJECT_ROOT / "translations" / f"{_PROJECT}_pytx_example"
 
 # Files/dirs that must be identical
 IMMUTABLE_PATHS = [
@@ -43,10 +45,10 @@ def check() -> list[str]:
     violations: list[str] = []
 
     if not PYTX_DIR.exists():
-        violations.append(f"translations/ghostfolio_pytx does not exist")
+        violations.append(f"translations/{_PROJECT}_pytx does not exist")
         return violations
     if not EXAMPLE_DIR.exists():
-        violations.append(f"translations/ghostfolio_pytx_example does not exist")
+        violations.append(f"translations/{_PROJECT}_pytx_example does not exist")
         return violations
 
     for rel in IMMUTABLE_PATHS:
@@ -58,7 +60,7 @@ def check() -> list[str]:
             pytx_file = PYTX_DIR / f
             example_file = EXAMPLE_DIR / f
             if not pytx_file.exists():
-                violations.append(f"MISSING: {f} exists in example but not in ghostfolio_pytx")
+                violations.append(f"MISSING: {f} exists in example but not in {_PROJECT}_pytx")
                 continue
             pytx_content = pytx_file.read_text(encoding="utf-8")
             example_content = example_file.read_text(encoding="utf-8")
@@ -68,7 +70,7 @@ def check() -> list[str]:
         # Check for extra files in pytx wrapper
         for f in pytx_files:
             if f not in example_files:
-                violations.append(f"EXTRA: {f} exists in ghostfolio_pytx but not in example")
+                violations.append(f"EXTRA: {f} exists in {_PROJECT}_pytx but not in example")
 
     return violations
 

@@ -10,7 +10,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-echo "--- Code quality checks ---"
+PROJECT="${PROJECT_NAME:-ghostfolio}"
+echo "--- Code quality checks (PROJECT_NAME=$PROJECT) ---"
+echo "  Translation:  $ROOT_DIR/translations/${PROJECT}_pytx"
+echo "  Example:      $ROOT_DIR/translations/${PROJECT}_pytx_example"
+echo "  tt scaffold:  $ROOT_DIR/tt/tt/scaffold/${PROJECT}_pytx"
 echo ""
 
 CHECK_NAMES=()
