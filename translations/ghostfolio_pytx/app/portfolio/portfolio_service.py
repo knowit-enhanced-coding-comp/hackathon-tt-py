@@ -28,8 +28,10 @@ class PortfolioService:
         self,
         activities: list[dict],
         market_data: dict[str, dict[str, list[dict]]],
+        base_currency: str = "USD",
     ) -> None:
         self._activities = activities
+        self._base_currency = base_currency
         self._rate_service = CurrentRateService(market_data)
         self._calculator = RoaiPortfolioCalculator(activities, self._rate_service)
         self._portfolio: dict | None = None
@@ -144,6 +146,90 @@ class PortfolioService:
             }
 
         return {"holdings": holdings}
+
+    # ------------------------------------------------------------------
+    # Details (GET /api/v1/portfolio/details)
+    # ------------------------------------------------------------------
+
+    def get_details(self) -> dict:
+        if not self._activities:
+            return {
+                "accounts": {},
+                "createdAt": None,
+                "holdings": {},
+                "platforms": {},
+                "summary": {
+                    "totalInvestment": 0,
+                    "netPerformance": 0,
+                    "currentValueInBaseCurrency": 0,
+                },
+                "hasError": False,
+            }
+
+        holdings = self._calculator.get_holding_details()
+
+        # Aggregate summary from holdings
+        portfolio = self._ensure_portfolio()
+        symbols = portfolio["symbols"]
+        total_fees = portfolio["total_fees"]
+        total_investment = sum(s["investment"] for s in symbols.values())
+        total_current_value = 0.0
+        total_realized_pnl = 0.0
+
+        for sym, s in symbols.items():
+            if abs(s["quantity"]) > 1e-12:
+                price = self._rate_service.get_latest_price(sym)
+                total_current_value += abs(s["quantity"]) * price
+            total_realized_pnl += s["realized_pnl"]
+
+        open_investment = sum(
+            s["investment"] for s in symbols.values() if abs(s["quantity"]) > 1e-12
+        )
+        unrealized_pnl = total_current_value - open_investment
+        net_performance = total_realized_pnl + unrealized_pnl - total_fees
+
+        return {
+            "accounts": {
+                "default": {
+                    "balance": 0.0,
+                    "currency": self._base_currency,
+                    "name": "Default Account",
+                    "valueInBaseCurrency": total_current_value,
+                }
+            },
+            "createdAt": min(a["date"] for a in self._activities),
+            "holdings": holdings,
+            "platforms": {
+                "default": {
+                    "balance": 0.0,
+                    "currency": self._base_currency,
+                    "name": "Default Platform",
+                    "valueInBaseCurrency": total_current_value,
+                }
+            },
+            "summary": {
+                "totalInvestment": total_investment,
+                "netPerformance": net_performance,
+                "currentValueInBaseCurrency": total_current_value,
+                "totalFees": total_fees,
+            },
+            "hasError": False,
+        }
+
+    # ------------------------------------------------------------------
+    # Dividends (GET /api/v1/portfolio/dividends)
+    # ------------------------------------------------------------------
+
+    def get_dividends(self, group_by: str | None = None) -> dict:
+        dividends = self._calculator.get_dividends(group_by=group_by)
+        return {"dividends": dividends}
+
+    # ------------------------------------------------------------------
+    # Report (GET /api/v1/portfolio/report)
+    # ------------------------------------------------------------------
+
+    def get_report(self) -> dict:
+        return self._calculator.evaluate_report()
 
     # ------------------------------------------------------------------
     # Chart (historicalData equivalent)
