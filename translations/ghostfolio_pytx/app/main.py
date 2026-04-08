@@ -2,8 +2,8 @@
 Ghostfolio pytx — FastAPI entry point.
 
 Mirrors main.ts + app.module.ts: bootstraps the app and wires modules.
-All portfolio logic lives under app/portfolio/, matching the original
-Ghostfolio project structure.
+All portfolio logic lives under app/implementation/, with HTTP wiring
+in app/wrapper/. This file is part of the immutable wrapper layer.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
-from .portfolio.portfolio_controller import create_portfolio_router
+from .wrapper.portfolio.portfolio_controller import create_portfolio_router
 
 app = FastAPI(title="Ghostfolio pytx")
 
