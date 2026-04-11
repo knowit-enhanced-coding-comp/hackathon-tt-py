@@ -1,5 +1,26 @@
 # Competition Rules
 
+## Table of Contents
+
+- [Solution submission](#solution-submission)
+- [Judging Criteria](#judging-criteria)
+- [Core Rules](#core-rules)
+- [Judging process](#judging-process)
+- [Prizes](#prizes)
+- [Wrapper Rules](#wrapper-rules)
+  - [Project Layout](#project-layout)
+- [What the Translated Code Must Provide](#what-the-translated-code-must-provide)
+- [Automated Rule Checks](#automated-rule-checks)
+
+## Solution submission
+
+* At the end of the competition time, the team must reset their main branch to the commit they want to represent their final submission.
+* The submission must include:
+  * A runnable implementation of `tt`
+  * SOLUTION.md file explaining the solution and the coding approach followed to produce it
+    * The team must present the solution and the coding approach to the assistant judges
+      * If selected for for the final, a short presentation must be done from the stage
+    * It can contain visualizations
 
 ## Judging Criteria
 
@@ -39,8 +60,36 @@ fair too compare them.
 6. TT must not have project-specific logic which it simply copies into the translation. The translated code must be actually translated code, not pregenerated logic.
 7. You may use AST libraries in python.
 8. Your python code may not call node/js-tools or other external tools to translate the code. The translation should happen in python.
+9. The judges will have a one week period to detect cheating or other rule breaches. This might change the final winner.
+10. We expect the git commit log to reflect a gradual development of the solution, so do frequent commits.
 
-## Scaffold / Wrapper Rules
+## Judging process
+
+* 15.15-15.30: Instructions
+* 15.30-17.30: Initial coding time
+  * Github access will be given at 15.30.
+  * Work on solution.
+  * Prepare SOLUTION.md for short presentation to judges
+* 17.30-18.30: Coding and initial judge visits
+  * 3 judges or assistant judges will visit each team and get a 3m explanation of solution and approach
+  * The team can keep working on the solution in the mean time.
+  * At 18.30: all coding stops and solution must be committed to main branch on github before 18.30.
+* 18.30-19.00: Judges decide on three finalists
+* 19.10-19.20: Finalists present their solution, result and approach
+* 19.30: Winner is announced.
+
+## Prizes
+
+* Winning team: 30000 NOK
+* 2nd place: 7500 NOK
+* 3rd place: 5000 NOK
+* Most innovative workflow / agent setup: 2500 NOK
+* Best team cooperation: 2500 NOK
+* Special jury award: 2500 NOK
+
+Gift cards will be mailed to the winners after one week.
+
+## Wrapper Rules
 
 8. You are not allowed to add anything to `translations/ghostfolio_pytx_example/` before running `tt`.
 9. TT must copy the wrapper layer (`app/main.py` and `app/wrapper/`) from `translations/ghostfolio_pytx_example/` into `translations/ghostfolio_pytx/` **without modification**. The wrapper files must remain byte-for-byte identical to the example.
