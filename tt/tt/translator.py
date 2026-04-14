@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 
-def translate_typescript_file(ts_content: str) -> str:
+def translate_typescript_file(ts_content: str) -> str:  # deprecated
     """
     Translate TypeScript code to Python.
 
@@ -56,7 +56,7 @@ def translate_typescript_file(ts_content: str) -> str:
     return python_code.strip()
 
 
-def translate_roai_calculator(ts_file: Path, output_file: Path, stub_file: Path) -> None:
+def translate_roai_calculator(ts_file: Path, output_file: Path, stub_file: Path) -> None:  # deprecated
     """
     Translate the ROAI portfolio calculator from TypeScript to Python.
 
@@ -120,34 +120,54 @@ def translate_roai_calculator(ts_file: Path, output_file: Path, stub_file: Path)
 
 
 def run_translation(repo_root: Path, output_dir: Path) -> None:
-    """Run the translation process."""
-    # Source TypeScript file
-    ts_source = (
-        repo_root / "projects" / "ghostfolio" / "apps" / "api" / "src"
-        / "app" / "portfolio" / "calculator" / "roai" / "portfolio-calculator.ts"
-    )
+    """Orchestrate the full 8-layer translation pipeline."""
+    import json
+    from tt.parser import parse_file
+    from tt.extractor import extract
+    from tt.ir import build_ir
+    from tt.rewriters import rewrite
+    from tt.emitter import emit_module
 
-    # Stub file from the example
-    stub_source = (
-        repo_root / "translations" / "ghostfolio_pytx_example" / "app"
-        / "implementation" / "portfolio" / "calculator" / "roai"
-        / "portfolio_calculator.py"
-    )
+    # 1. Discover source files and load import map
+    scaffold_dir = Path(__file__).parent / "scaffold" / "ghostfolio_pytx"
+    import_map_file = scaffold_dir / "tt_import_map.json"
 
-    # Output file
-    output_file = (
-        output_dir / "app" / "implementation" / "portfolio" / "calculator"
-        / "roai" / "portfolio_calculator.py"
-    )
+    # Source files to translate (ROAI-first priority)
+    ts_sources = [
+        repo_root / "projects/ghostfolio/apps/api/src/app/portfolio/calculator/roai/portfolio-calculator.ts",
+    ]
 
-    if not ts_source.exists():
-        print(f"Warning: TypeScript source not found: {ts_source}")
-        return
+    # Output paths (mirror structure into app/implementation/)
+    output_mapping = {
+        "portfolio-calculator.ts": output_dir / "app/implementation/portfolio/calculator/roai/portfolio_calculator.py",
+    }
 
-    if not stub_source.exists():
-        print(f"Warning: Stub file not found: {stub_source}")
-        return
+    import_map = json.loads(import_map_file.read_text()) if import_map_file.exists() else {}
 
-    print(f"Translating {ts_source.name}...")
-    translate_roai_calculator(ts_source, output_file, stub_source)
-    print(f"  Translated → {output_file}")
+    for ts_source in ts_sources:
+        if not ts_source.exists():
+            print(f"Warning: TS source not found: {ts_source}")
+            continue
+
+        output_file = output_mapping.get(ts_source.name)
+        if not output_file:
+            continue
+
+        print(f"Translating {ts_source.name}...")
+
+        # Layers 1-4
+        tree = parse_file(ts_source)
+        src_bytes = ts_source.read_bytes()
+        extraction = extract(tree, src_bytes)
+        ir = build_ir(extraction, str(ts_source))
+        ir = rewrite(ir, import_map)
+
+        # Layer 5: emit Python
+        python_code = emit_module(ir)
+
+        # Write output
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text(python_code, encoding="utf-8")
+        print(f"  → {output_file}")
+
+    print("Translation complete.")

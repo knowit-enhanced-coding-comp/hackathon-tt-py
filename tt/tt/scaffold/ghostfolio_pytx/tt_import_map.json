@@ -1,0 +1,13 @@
+{
+  "@ghostfolio/api/app/portfolio/calculator/portfolio-calculator": "app.wrapper.portfolio.calculator.portfolio_calculator",
+  "@ghostfolio/api/helper/portfolio.helper": "app.implementation.helpers.portfolio_helper",
+  "@ghostfolio/common/helper": "app.implementation.helpers.common_helper",
+  "@ghostfolio/common/calculation-helper": "app.implementation.helpers.calculation_helper",
+  "@ghostfolio/common/interfaces": "app.implementation.helpers.interfaces",
+  "@ghostfolio/common/models": "app.implementation.helpers.models",
+  "@ghostfolio/common/types": "app.implementation.helpers.types",
+  "@ghostfolio/common/config": "app.implementation.helpers.config",
+  "big.js": "decimal",
+  "date-fns": "app.implementation.shims.dates",
+  "lodash": "app.implementation.shims.collections"
+}
