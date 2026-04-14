@@ -140,10 +140,16 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
         end_str = _date_str(end)
 
         # Get market prices
-        unit_price_at_end = self.current_rate_service.get_nearest_price(symbol, end_str)
-        unit_price_at_end = D(str(unit_price_at_end)) if unit_price_at_end else None
+        raw_price = self.current_rate_service.get_nearest_price(symbol, end_str)
+        unit_price_at_end = D(str(raw_price)) if raw_price else None
 
-        if not unit_price_at_end:
+        # Fallback for MANUAL data sources: use the latest activity's unit price
+        if not unit_price_at_end or unit_price_at_end == D(0):
+            latest_buy_sell = [a for a in activities if a.get("type") in ("BUY", "SELL")]
+            if latest_buy_sell:
+                unit_price_at_end = D(str(latest_buy_sell[-1].get("unitPrice", 0)))
+
+        if not unit_price_at_end or unit_price_at_end == D(0):
             return {
                 "hasErrors": True,
                 "totalInvestment": D(0),
@@ -401,7 +407,7 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
                 break
 
         total_gross_perf = gross_perf - gross_perf_at_start
-        total_net_perf = total_gross_perf - (fees - fees_at_start)
+        total_net_perf = total_gross_perf - (fees - fees_at_start) + total_dividend
 
         twi_avg = sum_twi / total_inv_days if total_inv_days > 0 else D(0)
         net_perf_pct = total_net_perf / twi_avg if twi_avg > 0 else D(0)
@@ -490,13 +496,13 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
                 latest = max(vbd.keys())
                 total_current_value = max(total_current_value, vbd[latest])
 
-        # Recalculate total current value properly
+        # Recalculate total current value: quantity * latest market price per symbol
         total_current_value = D(0)
         for sym, m in all_metrics.items():
-            vbd = m.get("valueByDate", {})
-            if vbd:
-                latest_date = max(vbd.keys())
-                total_current_value += vbd[latest_date]
+            qty = m["quantity"]
+            if qty != 0:
+                mp = D(str(m.get("marketPrice", 0)))
+                total_current_value += qty * mp
 
         if len(symbols) > 0:
             total_net_perf_pct = sum(m["netPerformancePercentage"] for m in all_metrics.values()) / len(symbols)
@@ -515,8 +521,10 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
                 "value": 0,
                 "netWorth": 0,
                 "totalInvestment": 0,
+                "netPerformance": 0,
                 "netPerformanceInPercentage": 0,
                 "netPerformanceInPercentageWithCurrencyEffect": 0,
+                "investmentValueWithCurrencyEffect": 0,
             })
 
         for ds in chart_dates:
@@ -531,13 +539,20 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
             twi = inv if inv > 0 else D(1)
             net_perf_pct = float(net_perf_val / twi) if twi > 0 else 0.0
 
+            # investmentValueWithCurrencyEffect: net new investment on this date
+            inv_val = D(0)
+            for sym, m in all_metrics.items():
+                inv_val += m.get("investmentByDate", {}).get(ds, D(0))
+
             chart.append({
                 "date": ds,
                 "value": float(value),
                 "netWorth": float(value),
                 "totalInvestment": float(inv),
+                "netPerformance": float(net_perf_val),
                 "netPerformanceInPercentage": net_perf_pct,
                 "netPerformanceInPercentageWithCurrencyEffect": net_perf_pct,
+                "investmentValueWithCurrencyEffect": float(inv_val),
             })
 
         return {
@@ -629,12 +644,14 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
                 "averagePrice": m.get("averagePrice", 0.0),
                 "marketPrice": m.get("marketPrice", 0.0),
                 "netPerformance": float(m["netPerformance"]),
+                "netPerformancePercent": float(m["netPerformancePercentage"]),
                 "netPerformancePercentage": float(m["netPerformancePercentage"]),
                 "grossPerformance": float(m["grossPerformance"]),
                 "grossPerformancePercentage": float(m["grossPerformancePercentage"]),
                 "dividend": float(m["totalDividend"]),
                 "fee": float(m["totalFees"]),
                 "currency": "USD",
+                "valueInBaseCurrency": float(m["quantity"] * D(str(m.get("marketPrice", 0)))),
             }
 
         return {"holdings": holdings}
