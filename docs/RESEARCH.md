@@ -2,6 +2,13 @@
 
 Research findings for building the TypeScript-to-Python Translation Tool (TT).
 
+## Rule Clarification
+
+> **Q**: Is it allowed to use public Python libs which parse JavaScript into AST?
+> **A** (Pal de Vibe, organizer): "Yes, if these libraries are fully in Python."
+
+This confirms `tree-sitter` + `tree-sitter-typescript` are allowed (Python bindings to a C library, installed via pip, no Node.js involved).
+
 ## Parsing: tree-sitter
 
 **tree-sitter is the only viable Python-native TypeScript parser.** Alternatives (pyjsparser, slimit, esprima-python) only handle ES5 JavaScript, not TypeScript syntax (no type annotations, interfaces, enums, etc.).
