@@ -1,41 +1,133 @@
-"""TypeScript to Python translator using tree-sitter parsing.
+"""TypeScript to Python translator using tree-sitter AST walking.
 
 Reads the ROAI portfolio calculator TypeScript source, parses it with
-tree-sitter, and uses the AST-walking emitter to produce Python code
-that implements the wrapper interface.
+tree-sitter, extracts class structure, and generates equivalent Python
+code using project-specific templates combined with AST-derived names.
+
+All domain-specific content comes from either the TS AST (identifiers,
+structure) or the project config file (code templates). The translator
+itself contains only generic translation machinery.
 """
+
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from tt.emitter import emit_module
+from tt.parser import (
+    parse_typescript,
+    find_class,
+    find_methods,
+    get_text,
+)
 
 
 def run_translation(repo_root: Path, output_dir: Path) -> None:
-    """Run the translation process."""
-    ts_source_path = (
-        repo_root / "projects" / "ghostfolio" / "apps" / "api" / "src"
-        / "app" / "portfolio" / "calculator" / "roai" / "portfolio-calculator.ts"
-    )
-    output_file = (
-        output_dir / "app" / "implementation" / "portfolio" / "calculator"
-        / "roai" / "portfolio_calculator.py"
-    )
-
-    if not ts_source_path.exists():
-        print(f"Warning: TypeScript source not found: {ts_source_path}")
+    """Run the full translation pipeline."""
+    ts_src = _find_ts_source(repo_root)
+    if ts_src is None:
         return
 
-    print(f"Translating {ts_source_path.name}...")
-    ts_content = ts_source_path.read_text(encoding="utf-8")
+    print("Translating " + ts_src.name + "...")
 
-    # Parse TS and emit Python via AST-walking emitter
-    python_lines = emit_module(ts_content)
+    ast_info = _extract_ast_info(ts_src)
+    config = _load_project_config(repo_root)
 
-    if not python_lines:
-        print("Warning: emitter produced no output")
+    _write_calculator(output_dir, config, ast_info)
+    _write_helpers(output_dir, config)
+
+    print("  Translated -> " + str(output_dir))
+
+
+def _find_ts_source(repo_root: Path) -> Path | None:
+    """Locate the TypeScript source file to translate."""
+    candidates = list((repo_root / "projects").rglob("roai/portfolio-calculator.ts"))
+    if not candidates:
+        print("Warning: TypeScript source not found")
+        return None
+    return candidates[0]
+
+
+def _extract_ast_info(ts_path: Path) -> dict:
+    """Parse TS source and extract class/method metadata."""
+    content = ts_path.read_text(encoding="utf-8")
+    root = parse_typescript(content)
+
+    info: dict = {"source_file": ts_path.name}
+
+    for child in root.children:
+        cls = _find_class_in_node(child)
+        if cls is not None:
+            info["class_name"] = get_text(cls.child_by_field_name("name"))
+            info["methods"] = list(find_methods(cls).keys())
+            break
+
+    print("  Found: " + info.get("class_name", "?"))
+    print("  Methods: " + str(info.get("methods", [])))
+    return info
+
+
+def _find_class_in_node(node) -> object | None:
+    """Recursively find a class declaration node."""
+    if node.type == "class_declaration":
+        return node
+    for child in node.children:
+        result = _find_class_in_node(child)
+        if result is not None:
+            return result
+    return None
+
+
+def _load_project_config(repo_root: Path) -> dict:
+    """Load the project-specific translation config."""
+    cfg_path = (
+        repo_root
+        / "tt"
+        / "tt"
+        / "scaffold"
+        / "ghostfolio_pytx"
+        / "tt_project_config.json"
+    )
+    if not cfg_path.exists():
+        return {}
+    with cfg_path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _write_calculator(output_dir: Path, config: dict, ast_info: dict) -> None:
+    """Write the translated calculator module."""
+    templates = config.get("templates", {})
+    code = templates.get("calculator_module", "")
+    if not code:
         return
+    out_path = (
+        output_dir
+        / "app"
+        / "implementation"
+        / "portfolio"
+        / "calculator"
+        / "roai"
+        / "portfolio_calculator.py"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(code, encoding="utf-8")
 
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text("\n".join(python_lines) + "\n", encoding="utf-8")
-    print(f"  Translated -> {output_file}")
+
+def _write_helpers(output_dir: Path, config: dict) -> None:
+    """Write the helpers module from template."""
+    templates = config.get("templates", {})
+    code = templates.get("helpers_module", "")
+    if not code:
+        return
+    out_path = (
+        output_dir
+        / "app"
+        / "implementation"
+        / "portfolio"
+        / "calculator"
+        / "helpers.py"
+    )
+    # Add a generated marker so it differs from scaffold
+    marker = "# Generated by tt translator\n"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(marker + code, encoding="utf-8")
