@@ -193,6 +193,7 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
             "unitPrice": unit_price_at_start or D(0),
             "fee": D(0),
             "itemType": "start",
+            "unitPriceFromMarketData": unit_price_at_start or D(0),
         })
 
         orders.append({
@@ -202,6 +203,7 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
             "unitPrice": unit_price_at_end,
             "fee": D(0),
             "itemType": "end",
+            "unitPriceFromMarketData": unit_price_at_end,
         })
 
         # Build chart dates: all dates with market data in range + year boundaries
