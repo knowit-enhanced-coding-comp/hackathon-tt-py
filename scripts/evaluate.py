@@ -80,9 +80,13 @@ def run_tests() -> tuple[float, str]:
     pytx_dir = ROOT / "translations" / "ghostfolio_pytx"
     port = "3335"
 
-    # Sync deps
+    # Sync deps for both the translated project and the tt project (has pytest)
     subprocess.run(
         ["uv", "sync", "--project", str(pytx_dir), "--extra", "dev", "--quiet"],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["uv", "sync", "--project", str(ROOT / "tt"), "--extra", "dev", "--quiet"],
         capture_output=True,
     )
 
