@@ -95,7 +95,7 @@ scoring:
 	-uv run --project tt python evaluate/scoring/successfultests.py
 	@echo "=== [2/3] Code quality score ==="
 	-uv run --project tt python evaluate/scoring/codequality.py
-	@echo "=== [3/3] Overall score (50% tests + 50% code quality) ==="
+	@echo "=== [3/3] Overall score (85% tests + 15% code quality) ==="
 	-uv run --project tt python evaluate/scoring/overall.py
 
 # Run all implementation-rule detection scripts against tt/ source.
