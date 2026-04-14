@@ -1,0 +1,4 @@
+# file: /Users/hakon.drange/work/hed/2026-oslo-enhanced-hackathon/hackathon-tt-py/tt/tt/import_resolver.py
+# hypothesis_version: 6.151.14
+
+['@nestjs/', 'Unmapped import: %s', 'big.js', 'builtins', 'copy', 'date-fns', 'date-fns/endOfDay', 'date-fns/endOfYear', 'date-fns/format', 'date-fns/isAfter', 'date-fns/isBefore', 'date-fns/isThisYear', 'date-fns/startOfDay', 'date-fns/startOfYear', 'date-fns/subDays', 'datetime', 'decimal', 'lodash', 'lodash/cloneDeep', 'lodash/isNumber', 'lodash/sortBy', 'python_module', 'symbols', 'tt_import_map.json', 'utf-8']
