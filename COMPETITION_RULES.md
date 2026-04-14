@@ -63,6 +63,7 @@ fair too compare them.
 7. The judges will have a one week period to detect cheating or other rule breaches. This might change the final winner.
 8. We expect the git commit log to reflect a gradual development of the solution, so do frequent commits.
 9. The TT core (`tt/`) must contain **no project-specific mappings** (e.g. no hard-coded `@ghostfolio/…` import paths). Project-specific configuration belongs in `tt_import_map.json` inside the relevant scaffold directory, passed to the translator at call time.
+10. `make detect_rule_breaches` detects rule breaches, but that does not mean you are not breaking rules if it doesn't find anything. It is simply a helper to allow you to work faster.
 
 ## Judging process
 
