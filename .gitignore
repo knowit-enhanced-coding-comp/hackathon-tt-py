@@ -50,6 +50,10 @@ Thumbs.db
 *.swo
 
 
+# Autoresearch loop
+results.tsv
+runs/
+
 # Coverage
 .pyscn/reports
 
