@@ -26,3 +26,8 @@ tt = "tt.cli:main"
 
 [tool.setuptools.packages]
 find = {}
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: slow integration tests that run the full translator pipeline",
+]

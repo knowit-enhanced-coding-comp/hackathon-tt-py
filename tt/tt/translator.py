@@ -1,153 +1,321 @@
 """
-Minimal TypeScript to Python translator.
+TypeScript to Python translator — AST pipeline.
 
-This translator reads TypeScript source files and performs basic translations
-using regex-based transformations. It's a simple but lawful implementation that
-actually converts TypeScript code patterns to Python equivalents.
+Orchestrates the full Parse → Transform → Generate pipeline:
+  1. Parse TypeScript source files with tree-sitter (parser.py)
+  2. Extract classes and methods
+  3. Translate each method body (transformer.py)
+  4. Resolve imports (import_resolver.py)
+  5. Generate Python source (generator.py)
+  6. Write output files and __init__.py stubs
 """
 from __future__ import annotations
 
-import re
+import logging
 from pathlib import Path
 
+from tt import generator, import_resolver, parser, transformer
 
-def translate_typescript_file(ts_content: str) -> str:
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Source file paths (relative to repo root)
+# ---------------------------------------------------------------------------
+
+_ROAI_TS = (
+    "projects/ghostfolio/apps/api/src/app/portfolio/calculator/roai/portfolio-calculator.ts"
+)
+_BASE_TS = (
+    "projects/ghostfolio/apps/api/src/app/portfolio/calculator/portfolio-calculator.ts"
+)
+
+# The 6 abstract methods that MUST appear in the output class
+_REQUIRED_METHODS = [
+    "get_performance",
+    "get_investments",
+    "get_holdings",
+    "get_details",
+    "get_dividends",
+    "evaluate_report",
+]
+
+# Default parameter lists for required methods (used when not found in source)
+_REQUIRED_METHOD_PARAMS: dict[str, list[str]] = {
+    "get_performance": [],
+    "get_investments": ["group_by=None"],
+    "get_holdings": [],
+    "get_details": ['base_currency="USD"'],
+    "get_dividends": ["group_by=None"],
+    "evaluate_report": [],
+}
+
+
+def _validate_python_body(body_lines: str, method_name: str) -> None:
+    """Validate that a translated method body is syntactically valid Python.
+
+    Wraps the body in a dummy function and attempts to parse it with ast.parse.
+
+    Args:
+        body_lines: The translated body source string.
+        method_name: Method name for logging context.
+
+    Raises:
+        SyntaxError: If the body is not valid Python.
     """
-    Translate TypeScript code to Python.
+    import ast
+    wrapped = f"def _dummy():\n{body_lines}\n"
+    try:
+        ast.parse(wrapped)
+    except SyntaxError as exc:
+        raise SyntaxError(f"Invalid Python in {method_name}: {exc}") from exc
 
-    This performs basic transformations:
-    - Class declarations
-    - Method definitions
-    - Simple return statements
-    - Variable declarations
+
+def _camel_to_snake(name: str) -> str:
+    """Delegate to transformer's camel_to_snake."""
+    return transformer.camel_to_snake(name)
+
+
+def _translate_method(method: dict, source_bytes: bytes, context: dict) -> dict:
+    """Translate a single method dict into a method_info dict for the generator.
+
+    Args:
+        method: Dict from parser.extract_methods — has ``name``, ``params``,
+            ``return_type``, ``body_node``, ``access``.
+        source_bytes: Raw TypeScript source bytes.
+        context: Translation context passed to transformer.
+
+    Returns:
+        A method_info dict suitable for generator.generate_method.
     """
-    python_code = ts_content
+    ts_name = method["name"]
+    py_name = _camel_to_snake(ts_name)
 
-    # Remove TypeScript imports (we'll add Python imports separately)
-    python_code = re.sub(r'^import\s+.*?;?\s*$', '', python_code, flags=re.MULTILINE)
+    # Translate parameter names to snake_case (strip type annotations)
+    # Object/array destructured params become **kwargs
+    py_params: list[str] = []
+    for p in method.get("params", []):
+        # params from parser are plain names (no type annotations)
+        # Object patterns like {a, b} come through as "{a, b}" — replace with **kwargs
+        stripped = p.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            py_params.append("**kwargs")
+        else:
+            py_params.append(_camel_to_snake(stripped))
 
-    # Translate class declarations: class Name extends Base { -> class Name(Base):
-    python_code = re.sub(
-        r'export\s+class\s+(\w+)\s+extends\s+(\w+)\s*\{',
-        r'class \1(\2):',
-        python_code
-    )
+    # Translate return type — sanitize complex/inline TS types
+    ret_type: str | None = None
+    if method.get("return_type"):
+        raw_ret = method["return_type"]
+        try:
+            translated_ret = transformer.translate_type(raw_ret)
+            # Validate it's a simple Python type annotation (no braces, semicolons)
+            if "{" in translated_ret or ";" in translated_ret or "|" in translated_ret.replace("None", ""):
+                ret_type = None  # too complex — omit annotation
+            else:
+                ret_type = translated_ret
+        except Exception:  # noqa: BLE001
+            ret_type = None
 
-    # Translate method definitions: protected methodName() { -> def methodName(self):
-    python_code = re.sub(
-        r'(protected|private|public)?\s*(\w+)\s*\([^)]*\)\s*\{',
-        lambda m: f"def {m.group(2)}(self):",
-        python_code
-    )
+    # Translate body
+    body_lines = ""
+    body_node = method.get("body_node")
+    if body_node is not None:
+        try:
+            body_lines = transformer.translate_method_body(
+                body_node, source_bytes, context, indent=2
+            )
+            # Validate the translated body is syntactically valid Python
+            _validate_python_body(body_lines, ts_name)
+        except SyntaxError as exc:
+            logger.warning("Syntax error in translated body of %s: %s", ts_name, exc)
+            body_lines = "        pass  # TODO: translation produced invalid Python"
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to translate body of %s: %s", ts_name, exc)
+            body_lines = "        pass  # TODO: translation failed"
 
-    # Translate return statements with enum values
-    python_code = re.sub(
-        r'return\s+(\w+)\.(\w+);',
-        r'return "\2"',
-        python_code
-    )
-
-    # Remove closing braces
-    python_code = re.sub(r'^\s*\}\s*$', '', python_code, flags=re.MULTILINE)
-
-    # Clean up multiple blank lines
-    python_code = re.sub(r'\n\s*\n\s*\n+', '\n\n', python_code)
-
-    return python_code.strip()
+    return {
+        "name": py_name,
+        "params": py_params,
+        "return_type": ret_type,
+        "body_lines": body_lines,
+    }
 
 
-def translate_roai_calculator(ts_file: Path, output_file: Path, stub_file: Path) -> None:
+def _extract_methods_from_file(
+    ts_path: Path,
+    class_name_filter: str | None,
+    context: dict,
+    only_with_body: bool = False,
+) -> tuple[list[dict], list[str]]:
+    """Parse a TypeScript file and extract translated methods.
+
+    Args:
+        ts_path: Path to the TypeScript source file.
+        class_name_filter: If set, only extract methods from this class.
+        context: Translation context for the transformer.
+        only_with_body: If True, skip abstract methods (no body_node).
+
+    Returns:
+        Tuple of (list of method_info dicts, list of TS import dicts).
     """
-    Translate the ROAI portfolio calculator from TypeScript to Python.
+    if not ts_path.exists():
+        logger.warning("TypeScript source not found: %s", ts_path)
+        return [], []
 
-    For this minimal implementation, we:
-    1. Read the TypeScript source
-    2. Translate simple methods we can handle
-    3. Keep the stub implementation for complex methods
+    source_bytes = ts_path.read_bytes()
+    tree = parser.parse_file(ts_path)
+    root = tree.root_node
+
+    ts_imports = parser.extract_imports(root)
+    classes = parser.extract_classes(root)
+
+    methods_out: list[dict] = []
+
+    for cls in classes:
+        if class_name_filter and cls["name"] != class_name_filter:
+            continue
+        raw_methods = parser.extract_methods(cls["node"])
+        for m in raw_methods:
+            if only_with_body and m.get("body_node") is None:
+                continue
+            method_info = _translate_method(m, source_bytes, context)
+            methods_out.append(method_info)
+
+    return methods_out, ts_imports
+
+
+def _build_import_statements(ts_imports: list[dict], import_map: dict) -> list[str]:
+    """Resolve TypeScript imports to Python import statements.
+
+    Args:
+        ts_imports: List of import dicts from parser.extract_imports.
+        import_map: Loaded tt_import_map.json dict.
+
+    Returns:
+        List of Python import statement strings.
     """
-    # Read the TypeScript source
-    ts_content = ts_file.read_text(encoding='utf-8')
+    stmts: list[str] = []
+    for imp in ts_imports:
+        module_path = imp.get("module_path", "")
+        symbols = imp.get("symbols", [])
+        stmt = import_resolver.resolve_and_generate(module_path, symbols, import_map)
+        stmts.append(stmt)
+    return stmts
 
-    # Read the stub implementation
-    stub_content = stub_file.read_text(encoding='utf-8')
 
-    # Extract the getPerformanceCalculationType method from TypeScript
-    # This is a simple method we can translate
-    perf_type_match = re.search(
-        r'protected\s+getPerformanceCalculationType\s*\(\s*\)\s*\{[^}]+\}',
-        ts_content,
-        re.DOTALL
-    )
+def _ensure_required_methods(methods: list[dict]) -> list[dict]:
+    """Ensure all 6 required abstract methods are present.
 
-    if perf_type_match:
-        # Translate this method
-        ts_method = perf_type_match.group(0)
-        py_method = translate_typescript_file(ts_method)
+    If a method is missing, add a stub with ``pass`` body.
 
-        # Add proper indentation
-        py_method = '\n'.join('    ' + line if line.strip() else line
-                              for line in py_method.split('\n'))
+    Args:
+        methods: List of method_info dicts already translated.
 
-        # Insert a comment showing this was translated
-        translated_section = (
-            "    # --- Translated from TypeScript ---\n"
-            + py_method + "\n"
-            "    # --- End translated section ---\n"
-        )
-
-        # Insert this into the stub class before the closing
-        # Find the last method in the stub and add our translated method after it
-        output_content = stub_content.replace(
-            '            }\n        }',
-            '            }\n        }\n\n' + translated_section
-        )
-
-        # Actually, let's just add it before the last method
-        lines = stub_content.split('\n')
-        # Find where to insert (before the last method)
-        for i in range(len(lines) - 1, 0, -1):
-            if lines[i].strip().startswith('def '):
-                lines.insert(i, translated_section)
-                break
-
-        output_content = '\n'.join(lines)
-    else:
-        output_content = stub_content
-
-    # Write the output
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text(output_content, encoding='utf-8')
+    Returns:
+        Updated list with all required methods present.
+    """
+    present = {m["name"] for m in methods}
+    for req in _REQUIRED_METHODS:
+        if req not in present:
+            logger.info("Adding stub for missing required method: %s", req)
+            methods.append({
+                "name": req,
+                "params": _REQUIRED_METHOD_PARAMS.get(req, []),
+                "return_type": None,
+                "body_lines": "        pass  # TODO: not found in TypeScript source",
+            })
+    return methods
 
 
 def run_translation(repo_root: Path, output_dir: Path) -> None:
-    """Run the translation process."""
-    # Source TypeScript file
-    ts_source = (
-        repo_root / "projects" / "ghostfolio" / "apps" / "api" / "src"
-        / "app" / "portfolio" / "calculator" / "roai" / "portfolio-calculator.ts"
+    """Run the full AST-based translation pipeline.
+
+    Parses both TypeScript source files, translates all methods, generates
+    a Python module, and writes it to the output directory.
+
+    Args:
+        repo_root: Root of the repository (contains ``projects/``).
+        output_dir: Translation output directory (e.g. ``translations/ghostfolio_pytx``).
+    """
+    roai_ts = repo_root / _ROAI_TS
+    base_ts = repo_root / _BASE_TS
+
+    # Load import map from output_dir (copied there by scaffold setup)
+    imp_map = import_resolver.load_import_map(output_dir)
+    if not imp_map:
+        logger.warning("tt_import_map.json not found at %s — imports may be unresolved", output_dir)
+
+    # Translation context
+    context: dict = {
+        "import_map": imp_map,
+        "local_vars": {},
+        "class_name": "RoaiPortfolioCalculator",
+    }
+
+    # --- Phase 1: Extract methods from ROAI calculator ---
+    logger.info("Parsing ROAI calculator: %s", roai_ts)
+    roai_methods, roai_ts_imports = _extract_methods_from_file(
+        roai_ts,
+        class_name_filter="RoaiPortfolioCalculator",
+        context=context,
+        only_with_body=False,
     )
 
-    # Stub file from the example
-    stub_source = (
-        repo_root / "translations" / "ghostfolio_pytx_example" / "app"
-        / "implementation" / "portfolio" / "calculator" / "roai"
+    # --- Phase 2: Extract non-abstract methods from base class ---
+    logger.info("Parsing base class: %s", base_ts)
+    base_context = {**context, "class_name": "PortfolioCalculator"}
+    base_methods, base_ts_imports = _extract_methods_from_file(
+        base_ts,
+        class_name_filter=None,  # take all classes
+        context=base_context,
+        only_with_body=True,  # skip abstract methods
+    )
+
+    # Merge: ROAI methods take priority; add base methods not already present
+    roai_method_names = {m["name"] for m in roai_methods}
+    for bm in base_methods:
+        if bm["name"] not in roai_method_names:
+            roai_methods.append(bm)
+
+    # Ensure all 6 required methods are present
+    all_methods = _ensure_required_methods(roai_methods)
+
+    # --- Phase 3: Resolve imports ---
+    all_ts_imports = roai_ts_imports + base_ts_imports
+    resolved_imports = _build_import_statements(all_ts_imports, imp_map)
+
+    # Always include essential Python imports
+    essential_imports = [
+        "import copy",
+        "from decimal import Decimal",
+        "from datetime import datetime, timedelta",
+        "from app.wrapper.portfolio.calculator.portfolio_calculator import PortfolioCalculator",
+    ]
+    # Prepend essentials, then resolved (dedup happens in generate_module)
+    all_imports = essential_imports + resolved_imports
+
+    # --- Phase 4: Generate Python source ---
+    class_info = {
+        "name": "RoaiPortfolioCalculator",
+        "base_class": "PortfolioCalculator",
+        "methods": all_methods,
+    }
+    source = generator.generate_module(all_imports, [class_info])
+
+    # --- Phase 5: Write output ---
+    output_file = (
+        output_dir
+        / "app"
+        / "implementation"
+        / "portfolio"
+        / "calculator"
+        / "roai"
         / "portfolio_calculator.py"
     )
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(source, encoding="utf-8")
+    logger.info("Wrote translated output to %s", output_file)
 
-    # Output file
-    output_file = (
-        output_dir / "app" / "implementation" / "portfolio" / "calculator"
-        / "roai" / "portfolio_calculator.py"
-    )
-
-    if not ts_source.exists():
-        print(f"Warning: TypeScript source not found: {ts_source}")
-        return
-
-    if not stub_source.exists():
-        print(f"Warning: Stub file not found: {stub_source}")
-        return
-
-    print(f"Translating {ts_source.name}...")
-    translate_roai_calculator(ts_source, output_file, stub_source)
-    print(f"  Translated → {output_file}")
+    # --- Phase 6: Create __init__.py files ---
+    generator.write_init_files(output_dir / "app" / "implementation")
+    logger.info("Translation complete.")
