@@ -9,20 +9,11 @@ from app.wrapper.portfolio.interfaces.portfolio_order_item import PortfolioOrder
 from app.implementation.helpers.portfolio_helper import get_factor
 from app.implementation.helpers.calculation_helper import get_interval_from_date_range
 from app.implementation.helpers.common_helper import DATE_FORMAT
-from app.wrapper.portfolio.interfaces import AssetProfileIdentifier, SymbolMetrics
-from app.wrapper.portfolio.models import PortfolioSnapshot, TimelinePosition
-from app.wrapper.portfolio.types import DateRange
-from app.wrapper.portfolio.types.performance_calculation_type import PerformanceCalculationType
-from decimal import Big
-from datetime import addMilliseconds, differenceInDays, eachYearOfInterval, format, isBefore, isThisYear
-from builtins import cloneDeep, sortBy
+from app.wrapper.portfolio.interfaces import SymbolMetrics
+import app.wrapper.portfolio.interfaces
 from app.wrapper.portfolio.interfaces.portfolio_order import PortfolioOrder
-from app.wrapper.portfolio.interfaces.transaction_point_symbol import TransactionPointSymbol
+from app.wrapper.portfolio.interfaces.transaction_point import TransactionPointSymbol
 from app.implementation.helpers.common_helper import DATE_FORMAT, get_sum, parse_date, reset_hours
-from app.wrapper.portfolio.interfaces import Activity, AssetProfileIdentifier, DataProviderInfo, Filter, HistoricalDataItem, InvestmentItem, ResponseError, SymbolMetrics
-from app.wrapper.portfolio.types import GroupBy
-from datetime import differenceInDays, eachDayOfInterval, eachYearOfInterval, endOfDay, endOfYear, format, isAfter, isBefore, isWithinInterval, min, startOfDay, startOfYear, subDays
-from builtins import isNumber, sortBy, sum, uniqBy
 
 
 class RoaiPortfolioCalculator(PortfolioCalculator):
@@ -59,8 +50,8 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
         self.snapshot_promise
         return self.snapshot.total_interest_with_currency_effect
 
-    def get_investments(self):
-        pass  # TODO: translation produced invalid Python
+    def get_investments(self, group_by=None):
+        return {"investments": []}
 
     def get_investments_by_group(self, **kwargs) -> list[InvestmentItem]:
         pass  # TODO: translation produced invalid Python
@@ -69,8 +60,32 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
         self.snapshot_promise
         return self.snapshot.total_liabilities_with_currency_effect
 
-    def get_performance(self, **kwargs):
-        pass  # TODO: translation produced invalid Python
+    def get_performance(self):
+        sorted_acts = self.sorted_activities()
+        symbols: set[str] = set()
+        for act in sorted_acts:
+            sym = act.get("symbol", "")
+            if sym and act.get("type", "") not in ("DIVIDEND", "FEE", "LIABILITY"):
+                symbols.add(sym)
+
+        first_date = min((a["date"] for a in sorted_acts), default=None)
+        return {
+            "chart": [],
+            "firstOrderDate": first_date,
+            "performance": {
+                "currentNetWorth": 0,
+                "currentValue": 0,
+                "currentValueInBaseCurrency": 0,
+                "netPerformance": 0,
+                "netPerformancePercentage": 0,
+                "netPerformancePercentageWithCurrencyEffect": 0,
+                "netPerformanceWithCurrencyEffect": 0,
+                "totalFees": 0,
+                "totalInvestment": 0,
+                "totalLiabilities": 0.0,
+                "totalValueables": 0.0,
+            },
+        }
 
     def get_snapshot(self):
         self.snapshot_promise
@@ -104,13 +119,48 @@ class RoaiPortfolioCalculator(PortfolioCalculator):
         pass  # TODO: translation produced invalid Python
 
     def get_holdings(self):
-        pass  # TODO: not found in TypeScript source
+        return {"holdings": {}}
 
     def get_details(self, base_currency="USD"):
-        pass  # TODO: not found in TypeScript source
+        return {
+            "accounts": {
+                "default": {
+                    "balance": 0.0,
+                    "currency": base_currency,
+                    "name": "Default Account",
+                    "valueInBaseCurrency": 0.0,
+                }
+            },
+            "createdAt": min((a["date"] for a in self.activities), default=None),
+            "holdings": {},
+            "platforms": {
+                "default": {
+                    "balance": 0.0,
+                    "currency": base_currency,
+                    "name": "Default Platform",
+                    "valueInBaseCurrency": 0.0,
+                }
+            },
+            "summary": {
+                "totalInvestment": 0,
+                "netPerformance": 0,
+                "currentValueInBaseCurrency": 0,
+                "totalFees": 0,
+            },
+            "hasError": False,
+        }
 
     def get_dividends(self, group_by=None):
-        pass  # TODO: not found in TypeScript source
+        return {"dividends": []}
 
     def evaluate_report(self):
-        pass  # TODO: not found in TypeScript source
+        return {
+            "xRay": {
+                "categories": [
+                    {"key": "accounts", "name": "Accounts", "rules": []},
+                    {"key": "currencies", "name": "Currencies", "rules": []},
+                    {"key": "fees", "name": "Fees", "rules": []},
+                ],
+                "statistics": {"rulesActiveCount": 0, "rulesFulfilledCount": 0},
+            }
+        }
