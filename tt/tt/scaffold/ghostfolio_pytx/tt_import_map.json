@@ -5,7 +5,9 @@
   },
   "@ghostfolio/common/interfaces": {
     "python_module": "app.wrapper.portfolio.interfaces",
-    "symbols": {}
+    "symbols": {
+      "SymbolMetrics": "SymbolMetrics"
+    }
   },
   "@ghostfolio/api/app/portfolio/interfaces/portfolio-order-item.interface": {
     "python_module": "app.wrapper.portfolio.interfaces.portfolio_order_item",
@@ -16,7 +18,7 @@
     "symbols": {"PortfolioOrder": "PortfolioOrder"}
   },
   "@ghostfolio/api/app/portfolio/interfaces/transaction-point-symbol.interface": {
-    "python_module": "app.wrapper.portfolio.interfaces.transaction_point_symbol",
+    "python_module": "app.wrapper.portfolio.interfaces.transaction_point",
     "symbols": {"TransactionPointSymbol": "TransactionPointSymbol"}
   },
   "@ghostfolio/api/helper/portfolio.helper": {
@@ -37,21 +39,15 @@
     }
   },
   "@ghostfolio/common/models": {
-    "python_module": "app.wrapper.portfolio.models",
-    "symbols": {
-      "PortfolioSnapshot": "PortfolioSnapshot",
-      "TimelinePosition": "TimelinePosition"
-    }
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {}
   },
   "@ghostfolio/common/types": {
-    "python_module": "app.wrapper.portfolio.types",
-    "symbols": {
-      "DateRange": "DateRange",
-      "GroupBy": "GroupBy"
-    }
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {}
   },
   "@ghostfolio/common/types/performance-calculation-type.type": {
-    "python_module": "app.wrapper.portfolio.types.performance_calculation_type",
-    "symbols": {"PerformanceCalculationType": "PerformanceCalculationType"}
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {}
   }
 }

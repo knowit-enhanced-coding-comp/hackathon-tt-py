@@ -88,26 +88,26 @@ def test_resolve_returns_none_for_empty_map() -> None:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("module,expected", [
-    ("big.js", "decimal"),
-    ("date-fns", "datetime"),
-    ("date-fns/format", "datetime"),
-    ("date-fns/differenceInDays", "datetime"),
-    ("date-fns/isBefore", "datetime"),
-    ("date-fns/isAfter", "datetime"),
-    ("date-fns/addMilliseconds", "datetime"),
-    ("date-fns/eachDayOfInterval", "datetime"),
-    ("date-fns/eachYearOfInterval", "datetime"),
-    ("date-fns/startOfDay", "datetime"),
-    ("date-fns/endOfDay", "datetime"),
-    ("date-fns/startOfYear", "datetime"),
-    ("date-fns/endOfYear", "datetime"),
-    ("date-fns/subDays", "datetime"),
-    ("date-fns/isWithinInterval", "datetime"),
-    ("date-fns/isThisYear", "datetime"),
-    ("lodash", "builtins"),
-    ("lodash/sortBy", "builtins"),
+    ("big.js", None),
+    ("date-fns", None),
+    ("date-fns/format", None),
+    ("date-fns/differenceInDays", None),
+    ("date-fns/isBefore", None),
+    ("date-fns/isAfter", None),
+    ("date-fns/addMilliseconds", None),
+    ("date-fns/eachDayOfInterval", None),
+    ("date-fns/eachYearOfInterval", None),
+    ("date-fns/startOfDay", None),
+    ("date-fns/endOfDay", None),
+    ("date-fns/startOfYear", None),
+    ("date-fns/endOfYear", None),
+    ("date-fns/subDays", None),
+    ("date-fns/isWithinInterval", None),
+    ("date-fns/isThisYear", None),
+    ("lodash", None),
+    ("lodash/sortBy", None),
     ("lodash/cloneDeep", "copy"),
-    ("lodash/isNumber", "builtins"),
+    ("lodash/isNumber", None),
 ])
 def test_resolve_third_party_known_mappings(module: str, expected: str) -> None:
     assert resolve_third_party(module) == expected
@@ -167,12 +167,12 @@ def test_resolve_and_generate_maps_symbols_via_symbol_map() -> None:
 
 def test_resolve_and_generate_falls_back_to_third_party() -> None:
     result = resolve_and_generate("big.js", ["Big"], {})
-    assert result == "from decimal import Big"
+    assert result.startswith("# suppressed:")
 
 
 def test_resolve_and_generate_nestjs_produces_placeholder() -> None:
     result = resolve_and_generate("@nestjs/common", ["Logger"], {})
-    assert result == "# TODO: unmapped import: @nestjs/common"
+    assert result.startswith("# suppressed:")
 
 
 def test_resolve_and_generate_unknown_produces_placeholder() -> None:

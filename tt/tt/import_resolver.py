@@ -1,7 +1,7 @@
 """
 Import path resolver for TypeScript-to-Python translation.
 
-Resolves ``@ghostfolio/...`` import paths via a project-specific
+Resolves project-specific scoped import paths via a per-project
 ``tt_import_map.json`` file, and maps known third-party TypeScript
 libraries (big.js, date-fns, lodash) to their Python equivalents.
 """
@@ -15,27 +15,28 @@ logger = logging.getLogger(__name__)
 
 # Built-in third-party library mappings (NOT project-specific).
 # Keys are TypeScript module specifiers; values are Python module names.
+# Use None to suppress the import entirely.
 _THIRD_PARTY_MAP: dict[str, str | None] = {
-    "big.js": "decimal",
-    "date-fns": "datetime",
-    "date-fns/format": "datetime",
-    "date-fns/differenceInDays": "datetime",
-    "date-fns/isBefore": "datetime",
-    "date-fns/isAfter": "datetime",
-    "date-fns/addMilliseconds": "datetime",
-    "date-fns/eachDayOfInterval": "datetime",
-    "date-fns/eachYearOfInterval": "datetime",
-    "date-fns/startOfDay": "datetime",
-    "date-fns/endOfDay": "datetime",
-    "date-fns/startOfYear": "datetime",
-    "date-fns/endOfYear": "datetime",
-    "date-fns/subDays": "datetime",
-    "date-fns/isWithinInterval": "datetime",
-    "date-fns/isThisYear": "datetime",
-    "lodash": "builtins",
-    "lodash/sortBy": "builtins",
+    "big.js": None,  # Big → Decimal; handled by big_mapper, no import needed
+    "date-fns": None,  # date-fns functions handled by date_mapper
+    "date-fns/format": None,
+    "date-fns/differenceInDays": None,
+    "date-fns/isBefore": None,
+    "date-fns/isAfter": None,
+    "date-fns/addMilliseconds": None,
+    "date-fns/eachDayOfInterval": None,
+    "date-fns/eachYearOfInterval": None,
+    "date-fns/startOfDay": None,
+    "date-fns/endOfDay": None,
+    "date-fns/startOfYear": None,
+    "date-fns/endOfYear": None,
+    "date-fns/subDays": None,
+    "date-fns/isWithinInterval": None,
+    "date-fns/isThisYear": None,
+    "lodash": None,  # lodash functions handled inline by transformer
+    "lodash/sortBy": None,
     "lodash/cloneDeep": "copy",
-    "lodash/isNumber": "builtins",
+    "lodash/isNumber": None,
 }
 
 # @nestjs/* modules are server-framework only — not needed in translation.
@@ -63,16 +64,14 @@ def load_import_map(path: Path) -> dict:
 
 
 def resolve(ts_import_path: str, import_map: dict) -> str | None:
-    """Resolve a ``@ghostfolio/...`` import path using the project import map.
+    """Resolve a project-specific TS import path using the project import map.
 
     Args:
-        ts_import_path: The TypeScript module specifier, e.g.
-            ``"@ghostfolio/common/interfaces"``.
+        ts_import_path: The TypeScript module specifier from the project source.
         import_map: Dict loaded from ``tt_import_map.json``.
 
     Returns:
-        The Python module path string (e.g. ``"app.wrapper.portfolio.interfaces"``),
-        or ``None`` if the path is not in the map.
+        The Python module path string, or ``None`` if the path is not in the map.
     """
     entry = import_map.get(ts_import_path)
     if entry is None:
@@ -85,21 +84,21 @@ def resolve_third_party(module: str) -> str | None:
 
     Built-in mappings cover big.js, date-fns, and lodash.
     ``@nestjs/*`` modules are intentionally omitted (server framework).
+    Returns ``None`` for modules that should be suppressed (no import needed).
 
     Args:
         module: The TypeScript module specifier, e.g. ``"big.js"`` or
             ``"date-fns/format"``.
 
     Returns:
-        The Python module name (e.g. ``"decimal"``), or ``None`` if the
-        module is unknown or intentionally unmapped.
+        The Python module name (e.g. ``"copy"``), ``None`` to suppress the
+        import, or ``None`` if the module is unknown.
     """
     if module.startswith(_NESTJS_PREFIX):
         return None
-    result = _THIRD_PARTY_MAP.get(module)
-    if result is None and module not in _THIRD_PARTY_MAP:
+    if module not in _THIRD_PARTY_MAP:
         return None
-    return result
+    return _THIRD_PARTY_MAP[module]
 
 
 def generate_import_statement(python_module: str, symbols: list[str]) -> str:
@@ -149,12 +148,23 @@ def resolve_and_generate(
     if python_module is not None:
         entry = import_map.get(ts_import_path, {})
         symbol_map: dict = entry.get("symbols", {})
-        py_symbols = [symbol_map.get(s, s) for s in ts_symbols] if ts_symbols else []
+        if symbol_map:
+            # Only include symbols explicitly mapped — skip unmapped ones
+            py_symbols = [symbol_map[s] for s in ts_symbols if s in symbol_map]
+            if not py_symbols and ts_symbols:
+                # All symbols were filtered out — skip this import entirely
+                return f"# skipped: no mapped symbols from {ts_import_path}"
+        else:
+            # Empty symbol map: emit bare module import (no specific symbols)
+            py_symbols = []
         return generate_import_statement(python_module, py_symbols)
 
     # 2. Try built-in third-party map
-    third_party_module = resolve_third_party(ts_import_path)
-    if third_party_module is not None:
+    if ts_import_path in _THIRD_PARTY_MAP or ts_import_path.startswith(_NESTJS_PREFIX):
+        third_party_module = resolve_third_party(ts_import_path)
+        if third_party_module is None:
+            # Intentionally suppressed (e.g. big.js, date-fns, lodash, @nestjs/*)
+            return f"# suppressed: {ts_import_path}"
         return generate_import_statement(third_party_module, ts_symbols)
 
     # 3. Unmapped — emit a commented placeholder
