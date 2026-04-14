@@ -1,16 +1,16 @@
 # Autoresearch Loop Scripts
 
-Three scripts that instrument the iteration loop. All metrics are stored locally in `results.tsv` (gitignored) and per-run logs in `runs/`.
+Three Python scripts that instrument the iteration loop. All metrics are stored locally in `results.csv` (gitignored) and per-run logs in `runs/`.
 
 ## Usage
 
 ### 1. Run an experiment
 
 ```bash
-bash scripts/evaluate.sh "description of what you changed"
+python scripts/evaluate.py "description of what you changed"
 ```
 
-This runs the full translate+test cycle and appends a row to `results.tsv`. It prints:
+This runs the full translate+test cycle and appends a row to `results.csv`. It prints:
 - Pass/fail/error counts
 - Delta from previous best
 - New passes (tests that flipped green)
@@ -20,26 +20,26 @@ This runs the full translate+test cycle and appends a row to `results.tsv`. It p
 ### 2. Mark the result
 
 ```bash
-bash scripts/mark.sh keep      # improvement, advance branch
-bash scripts/mark.sh discard   # regression or no improvement
-bash scripts/mark.sh baseline  # first run, establishes the baseline
-bash scripts/mark.sh crash     # server failed to start
+python scripts/mark.py keep      # improvement, advance branch
+python scripts/mark.py discard   # regression or no improvement
+python scripts/mark.py baseline  # first run, establishes the baseline
+python scripts/mark.py crash     # server failed to start
 ```
 
-Updates the status column of the last row in `results.tsv`.
+Updates the status column of the last row in `results.csv`.
 
 ### 3. View stats
 
 ```bash
-bash scripts/stats.sh              # full summary with improvement timeline
-bash scripts/stats.sh --last 10    # last 10 experiments
-bash scripts/stats.sh --keeps      # only kept experiments
-bash scripts/stats.sh --csv        # raw TSV for piping to other tools
+python scripts/stats.py              # full summary with improvement timeline
+python scripts/stats.py --last 10    # last 10 experiments
+python scripts/stats.py --keeps      # only kept experiments
+python scripts/stats.py --csv        # raw CSV for piping to other tools
 ```
 
 ## Data Format
 
-`results.tsv` is tab-separated with these columns:
+`results.csv` columns:
 
 | Column | Description |
 |---|---|
@@ -56,17 +56,15 @@ bash scripts/stats.sh --csv        # raw TSV for piping to other tools
 
 ## Per-run logs
 
-Full pytest output for each run is saved to `runs/run_TIMESTAMP.log`. These are useful for debugging specific test failures after the fact.
+Full pytest output for each run is saved to `runs/run_TIMESTAMP.log`. Useful for debugging specific failures after the fact.
 
 ## Integration with the agent loop
 
-The agent (Claude Code) uses these scripts in the PROGRAM.md loop:
-
 ```
-1. bash scripts/evaluate.sh "added Big.js .plus() transform"
+1. python scripts/evaluate.py "added Big.js .plus() transform"
 2. Read the printed summary
-3. If KEEP: bash scripts/mark.sh keep
-   If DISCARD: bash scripts/mark.sh discard && git reset --hard HEAD~1
-4. bash scripts/stats.sh (every ~5 experiments)
+3. If KEEP:    python scripts/mark.py keep
+   If DISCARD: python scripts/mark.py discard && git reset --hard HEAD~1
+4. python scripts/stats.py (every ~5 experiments)
 5. Loop
 ```

@@ -51,7 +51,7 @@ Thumbs.db
 
 
 # Autoresearch loop
-results.tsv
+results.csv
 runs/
 
 # Coverage
