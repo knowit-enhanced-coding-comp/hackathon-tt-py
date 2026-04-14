@@ -102,7 +102,6 @@ Gift cards will be mailed to the winners after one week.
     - Auth helpers (`_make_tokens`, `_get_user`)
     - Abstract calculator interface
     - Market price lookup service
-    - Shared interface dataclasses
 12. The wrapper must **not** contain:
     - Financial arithmetic (cost-basis tracking, performance calculation, chart generation)
     - Position replay or investment grouping logic
@@ -122,7 +121,6 @@ translations/ghostfolio_pytx/app/
 │       ├── current_rate_service.py                  # market price lookups
 │       ├── calculator/
 │       │   └── portfolio_calculator.py              # abstract calculator interface
-│       └── interfaces/                              # shared dataclasses
 └── implementation/                                  # tt-generated code
     └── portfolio/
         └── calculator/
@@ -130,7 +128,7 @@ translations/ghostfolio_pytx/app/
                 └── portfolio_calculator.py           # ROAI calculator (translated)
 ```
 
-**Wrapper** (`app/main.py` + `app/wrapper/`): HTTP wiring, auth, thin service delegation, abstract interfaces. Copied verbatim from `translations/ghostfolio_pytx_example/` — tt must NOT modify these files.
+**Wrapper** (`app/main.py` + `app/wrapper/`): HTTP wiring, auth, thin service delegation, abstract interface. Copied verbatim from `translations/ghostfolio_pytx_example/` — tt must NOT modify these files.
 
 **Implementation** (`app/implementation/`): The actual translated financial logic. This is the only code tt generates.
 
