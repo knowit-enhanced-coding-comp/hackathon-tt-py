@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from tt.tt.parser import parse_ts_file, extract_class_methods; print\\('parser stub ok'\\)\")",
+      "Bash(python -c \"from tt.tt.lib_map import BIG_JS_METHODS, DATE_FNS_FUNCTIONS; print\\('lib_map stub ok'\\)\")",
+      "Bash(python -c \"from tt.tt.codegen import generate_python_class, camel_to_snake; print\\('codegen stub importable'\\)\")",
+      "Bash(python -c \"import json; json.load\\(open\\('tt/tt/scaffold/ghostfolio_pytx/tt_import_map.json'\\)\\); print\\('import map valid json'\\)\")",
+      "Bash(uv run:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(~/.local/bin/uv run:*)",
+      "Bash(cmd.exe /c \"uv run --project tt tt translate\")",
+      "Bash(make detect_rule_breaches)",
+      "Bash(cmd.exe /c \"make detect_rule_breaches\")"
+    ]
+  }
+}
