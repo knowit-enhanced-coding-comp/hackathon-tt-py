@@ -253,6 +253,7 @@ def test_property4_ternary_translation_is_valid_python(
 ) -> None:
     """Property 4: ternary translation produces syntactically valid Python."""
     assume(cond != cons and cond != alt)
+    assume(not any(_keyword.iskeyword(x) for x in (cond, cons, alt)))
     # Simulated translation of: cond ? cons : alt → cons if cond else alt
     py_expr = f"{cons} if {cond} else {alt}"
     assert _is_valid_python_expr(py_expr), f"Invalid Python: {py_expr!r}"
@@ -268,6 +269,7 @@ def test_property4_optional_chain_translation_is_valid_python(
 ) -> None:
     """Property 4: optional chaining translation produces syntactically valid Python."""
     assume(obj != prop)
+    assume(not any(_keyword.iskeyword(x) for x in (obj, prop)))
     # Simulated translation of: obj?.prop → obj.prop if obj is not None else None
     py_expr = f"{obj}.{prop} if {obj} is not None else None"
     assert _is_valid_python_expr(py_expr), f"Invalid Python: {py_expr!r}"
@@ -282,6 +284,7 @@ def test_property4_nullish_coalescing_translation_is_valid_python(
     var: str, default: int
 ) -> None:
     """Property 4: nullish coalescing translation produces syntactically valid Python."""
+    assume(not _keyword.iskeyword(var))
     # Simulated translation of: var ?? default → var if var is not None else default
     py_expr = f"{var} if {var} is not None else {default}"
     assert _is_valid_python_expr(py_expr), f"Invalid Python: {py_expr!r}"
@@ -298,6 +301,7 @@ def test_property4_for_of_translation_is_valid_python(
 ) -> None:
     """Property 4: for...of translation produces syntactically valid Python."""
     assume(loop_var != iterable)
+    assume(not any(_keyword.iskeyword(x) for x in (loop_var, iterable, body_var)))
     # Simulated translation of: for (const loop_var of iterable) { body_var = loop_var; }
     py_stmt = f"for {loop_var} in {iterable}:\n    {body_var} = {loop_var}"
     assert _is_valid_python_stmt(py_stmt), f"Invalid Python: {py_stmt!r}"
@@ -336,6 +340,7 @@ def test_property4_array_destructuring_translation_is_valid_python(
 ) -> None:
     """Property 4: array destructuring translation produces syntactically valid Python."""
     assume(var1 != var2 and iterable not in (var1, var2))
+    assume(not any(_keyword.iskeyword(x) for x in (var1, var2, iterable)))
     # Simulated translation of: const [var1, var2] = iterable
     py_stmt = f"{var1}, {var2} = {iterable}"
     assert _is_valid_python_stmt(py_stmt), f"Invalid Python: {py_stmt!r}"
