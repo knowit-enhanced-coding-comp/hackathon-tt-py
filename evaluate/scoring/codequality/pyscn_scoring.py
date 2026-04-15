@@ -16,8 +16,10 @@ Importable API:
   from evaluate.scoring.codequality.pyscn_scoring import run
   result = run(translated_path, tt_path)
 """
+
 from __future__ import annotations
 
+import os
 import json
 import re
 import subprocess
@@ -48,10 +50,17 @@ def _grade(score: float) -> str:
 def _run_pyscn(path: Path) -> dict:
     """Run pyscn analyze on *path* and return the parsed summary dict."""
     if not path.exists():
-        return {"error": f"path does not exist: {path}", "health_score": 0, "grade": "F"}
+        return {
+            "error": f"path does not exist: {path}",
+            "health_score": 0,
+            "grade": "F",
+        }
 
+    # Override the pinned pyscn version via env (e.g. PYSCN_VERSION=latest or 1.5.0).
+    pyscn_version = os.environ.get("PYSCN_VERSION", "latest")
+    pyscn_spec = f"pyscn@{pyscn_version}"
     result = subprocess.run(
-        ["uvx", "pyscn@latest", "analyze", str(path), "--json"],
+        ["uvx", pyscn_spec, "analyze", str(path), "--json"],
         capture_output=True,
         text=True,
         cwd=REPO_ROOT,
@@ -60,26 +69,34 @@ def _run_pyscn(path: Path) -> dict:
     # pyscn prints the JSON report path in stdout
     match = re.search(r"Unified JSON report generated:\s*(.+\.json)", result.stderr)
     if not match:
-        return {"error": "pyscn did not emit a JSON report path", "health_score": 0, "grade": "F"}
+        return {
+            "error": "pyscn did not emit a JSON report path",
+            "health_score": 0,
+            "grade": "F",
+        }
 
     report_path = Path(match.group(1).strip())
     if not report_path.exists():
-        return {"error": f"report file not found: {report_path}", "health_score": 0, "grade": "F"}
+        return {
+            "error": f"report file not found: {report_path}",
+            "health_score": 0,
+            "grade": "F",
+        }
 
     data = json.loads(report_path.read_text(encoding="utf-8"))
     summary = data.get("summary", {})
     return {
-        "health_score":       summary.get("health_score", 0),
-        "grade":              summary.get("grade", "F"),
-        "complexity_score":   summary.get("complexity_score", 0),
-        "dead_code_score":    summary.get("dead_code_score", 0),
-        "duplication_score":  summary.get("duplication_score", 0),
-        "coupling_score":     summary.get("coupling_score", 0),
-        "dependency_score":   summary.get("dependency_score", 0),
+        "health_score": summary.get("health_score", 0),
+        "grade": summary.get("grade", "F"),
+        "complexity_score": summary.get("complexity_score", 0),
+        "dead_code_score": summary.get("dead_code_score", 0),
+        "duplication_score": summary.get("duplication_score", 0),
+        "coupling_score": summary.get("coupling_score", 0),
+        "dependency_score": summary.get("dependency_score", 0),
         "architecture_score": summary.get("architecture_score", 0),
         "average_complexity": summary.get("average_complexity", 0),
         "code_duplication_percentage": summary.get("code_duplication_percentage", 0),
-        "total_files":        summary.get("total_files", 0),
+        "total_files": summary.get("total_files", 0),
     }
 
 
@@ -89,8 +106,11 @@ def run(
 ) -> dict:
     """Score both targets and return a combined result dict."""
     import os
+
     _project = os.environ.get("PROJECT_NAME", "ghostfolio")
-    translated_path = translated_path or (REPO_ROOT / "translations" / f"{_project}_pytx")
+    translated_path = translated_path or (
+        REPO_ROOT / "translations" / f"{_project}_pytx"
+    )
     tt_path = tt_path or (REPO_ROOT / "tt" / "tt")
 
     translated = _run_pyscn(translated_path)

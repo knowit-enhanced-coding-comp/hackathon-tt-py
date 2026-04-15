@@ -55,12 +55,17 @@ def load_env_file(path: Path) -> None:
             os.environ[key] = value
 
 
-def submit_to_supabase(supabase_url: str, anon_key: str, payload: dict) -> tuple[bool, str, dict | None]:
+def submit_to_supabase(
+    supabase_url: str,
+    anon_key: str,
+    payload: dict,
+    table: str = "submissions",
+) -> tuple[bool, str, dict | None]:
     """
     Submit to Supabase REST API.
     Returns (success, message, response_data).
     """
-    url = f"{supabase_url}/rest/v1/submissions"
+    url = f"{supabase_url}/rest/v1/{table}"
     headers = {
         "apikey": anon_key,
         "Authorization": f"Bearer {anon_key}",
@@ -100,7 +105,17 @@ def main() -> int:
         choices=["ghostfolio", "secretproject"],
         help="Project name for the submission",
     )
+    parser.add_argument(
+        "--final",
+        action="store_true",
+        help=(
+            "Publish to the final_submissions table. Runs a thorough Claude "
+            "review of tt/ source and sets manual_validation based on whether "
+            "any rule breaches (including prefabricated logic) were found."
+        ),
+    )
     args = parser.parse_args()
+    target_table = "final_submissions" if args.final else "submissions"
 
     # Load .env if present
     env_file = REPO_ROOT / ".env"
@@ -159,6 +174,22 @@ def main() -> int:
             valid_checks = False
             break
 
+    # --- Thorough Claude review (only for --final) ---
+    manual_validation: bool | None = None
+    manual_validation_findings: list[str] = []
+    if args.final:
+        print()
+        print("=" * 70)
+        print("  Thorough Claude review of tt/ (manual_validation gate)")
+        print("=" * 70)
+        from thorough_review import run_review  # local sibling module
+        manual_validation, manual_validation_findings = run_review(verbose=True)
+        print()
+        print(f"  manual_validation = {str(manual_validation).lower()}")
+        if manual_validation_findings:
+            for f in manual_validation_findings:
+                print(f"    {f}")
+
     # --- Build JSON report (for local file) ---
     report = {
         "project": args.project,
@@ -173,12 +204,17 @@ def main() -> int:
         **translated_scores,
         "checks": checks_dict,
     }
+    if args.final:
+        report["manual_validation"] = manual_validation
+        if manual_validation_findings:
+            report["manual_validation_findings"] = manual_validation_findings
 
     report_json = json.dumps(report, indent=2)
 
     # Save report
     SCORING_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    report_path = SCORING_RESULTS_DIR / "publish_latest.json"
+    report_filename = "publish_final_latest.json" if args.final else "publish_latest.json"
+    report_path = SCORING_RESULTS_DIR / report_filename
     report_path.write_text(report_json, encoding="utf-8")
 
     # --- Print JSON ---
@@ -204,10 +240,12 @@ def main() -> int:
         **{k.replace("translated_", "translated_"): v for k, v in translated_scores.items()},
         "checks": checks_dict,
     }
+    if args.final:
+        payload["manual_validation"] = manual_validation
 
     # --- Submit to Supabase if configured ---
     print("=" * 70)
-    print("  Publishing to Supabase")
+    print(f"  Publishing to Supabase (table: {target_table})")
     print("=" * 70)
     print()
 
@@ -223,8 +261,12 @@ def main() -> int:
         print(f"  Overall: {overall}")
         print(f"  Legal:   {legal}")
         print()
-        print("  Submitting to Supabase REST API...")
-        success, message, data = submit_to_supabase(supabase_url, supabase_anon_key, payload)
+        if args.final:
+            print(f"  Manual validation: {manual_validation}")
+        print(f"  Submitting to Supabase REST API (table: {target_table})...")
+        success, message, data = submit_to_supabase(
+            supabase_url, supabase_anon_key, payload, table=target_table
+        )
         if success:
             print(f"  ✓ {message}")
         else:

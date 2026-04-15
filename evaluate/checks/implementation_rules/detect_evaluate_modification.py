@@ -11,11 +11,18 @@ Usage:
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+
+
+def _ignored_paths() -> list[str]:
+    """Comma-separated list of path prefixes (relative to repo root) to ignore."""
+    raw = os.environ.get("EVALUATE_IGNORE_PATHS", "")
+    return [p.strip() for p in raw.split(",") if p.strip()]
 
 
 def scan() -> list[str]:
@@ -32,7 +39,11 @@ def scan() -> list[str]:
         # origin/main may not exist (e.g. shallow clone)
         return []
 
-    changed = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    ignored = _ignored_paths()
+    changed = [
+        line.strip() for line in result.stdout.splitlines()
+        if line.strip() and not any(line.strip().startswith(p) for p in ignored)
+    ]
     if not changed:
         return []
 
