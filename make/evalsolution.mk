@@ -12,7 +12,7 @@
         translate-and-test-ghostfolio_pytx evaluate_tt \
         evaluate_tt_ghostfolio evaluate_tt_example_ghostfolio \
         scoring_codequality scoring detect_rule_breaches publish_results \
-        publish_final_results
+        publish_final_results final_evaluate_tt_ghostfolio
 
 # Evaluate a translated project
 # Usage: make evaluate PROJECT=translations/ghostfolio_pytx
@@ -78,6 +78,21 @@ evaluate_tt:
 
 # Evaluate the real tt translator against ghostfolio
 evaluate_tt_ghostfolio:
+	$(MAKE) evaluate_tt TT_PROJECT=tt PROJECT_NAME=ghostfolio
+
+# Final-submission variant of evaluate_tt_ghostfolio.
+# Ignores self-modifications to pyscn_scoring.py and detect_evaluate_modification.py
+# (needed because the final-submission flow updates those checkers themselves),
+# and pins the pyscn version to a known-good release.
+#
+# Defaults can be overridden from the shell environment or the make command line,
+# e.g.  EVALUATE_IGNORE_PATHS=foo,bar PYSCN_VERSION=1.6.0 make final_evaluate_tt_ghostfolio
+EVALUATE_IGNORE_PATHS ?= evaluate/scoring/codequality/pyscn_scoring.py,evaluate/checks/implementation_rules/detect_evaluate_modification.py
+PYSCN_VERSION ?= 1.5.0
+
+final_evaluate_tt_ghostfolio:
+	EVALUATE_IGNORE_PATHS="$(EVALUATE_IGNORE_PATHS)" \
+	PYSCN_VERSION="$(PYSCN_VERSION)" \
 	$(MAKE) evaluate_tt TT_PROJECT=tt PROJECT_NAME=ghostfolio
 
 # Evaluate the minimal tt_example against ghostfolio (scaffold only, no translation)
@@ -158,7 +173,7 @@ publish_final_results:
 		exit 1; \
 	fi
 	@echo "  OK: latest commit is at or before the deadline."
-	@echo "=== [1/3] Running evaluate_tt_ghostfolio ==="
-	$(MAKE) evaluate_tt_ghostfolio
+	@echo "=== [1/3] Running final_evaluate_tt_ghostfolio ==="
+	$(MAKE) final_evaluate_tt_ghostfolio
 	@echo "=== [2/3] Publishing to final_submissions (thorough Claude review) ==="
 	uv run --project tt python evaluate/scoring/publish_scores.py --project ghostfolio --final
