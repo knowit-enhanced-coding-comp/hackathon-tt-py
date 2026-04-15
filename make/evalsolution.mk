@@ -11,7 +11,8 @@
         spinup-and-test-ghostfolio_pytx \
         translate-and-test-ghostfolio_pytx evaluate_tt \
         evaluate_tt_ghostfolio evaluate_tt_example_ghostfolio \
-        scoring_codequality scoring detect_rule_breaches publish_results
+        scoring_codequality scoring detect_rule_breaches publish_results \
+        publish_final_results
 
 # Evaluate a translated project
 # Usage: make evaluate PROJECT=translations/ghostfolio_pytx
@@ -113,3 +114,51 @@ publish_results:
 # Run all implementation-rule detection scripts against tt/ source.
 detect_rule_breaches:
 	bash evaluate/checks/detect_rule_breaches.sh
+
+# Publish FINAL results to the final_submissions table.
+#
+# Hard gates, in order:
+#   1. Latest commit on main must be on or before 2026-04-14 18:31:00 +0200.
+#      (Prints the commit time; fails hard if past the deadline.)
+#   2. Runs `make evaluate_tt_ghostfolio` end-to-end.
+#   3. Runs a thorough Claude review of tt/ source (rule breaches, including
+#      prefabricated logic). Result is submitted as `manual_validation`
+#      (false if any violation is found).
+#   4. Submits to the `final_submissions` Supabase table.
+#
+# Requires TEAM_NAME and ANTHROPIC_API_KEY to be set.
+FINAL_DEADLINE_EPOCH := 1776184260
+FINAL_DEADLINE_HUMAN := Tue Apr 14 18:31:00 2026 +0200
+
+publish_final_results:
+	@if [ -z "$$TEAM_NAME" ] || [ "$$TEAM_NAME" = "TeamAlpha" ]; then \
+		echo "ERROR: TEAM_NAME is not set or is still the default 'TeamAlpha'."; \
+		echo "Set your team name with:"; \
+		echo "  export TEAM_NAME=YourTeamName"; \
+		echo "or add TEAM_NAME=YourTeamName to your .env file."; \
+		exit 1; \
+	fi
+	@if [ -z "$$ANTHROPIC_API_KEY" ]; then \
+		echo "ERROR: ANTHROPIC_API_KEY is not set."; \
+		echo "The thorough Claude review requires an API key."; \
+		exit 1; \
+	fi
+	@echo "=== [0/3] Deadline check: delayed-submission guard ==="
+	@LATEST_EPOCH=$$(git log -1 --format=%ct main); \
+	LATEST_HUMAN=$$(git log -1 --format=%cd --date=iso-strict main); \
+	LATEST_SUBJECT=$$(git log -1 --format=%s main); \
+	echo "  Latest commit on main:"; \
+	echo "    time:    $$LATEST_HUMAN"; \
+	echo "    subject: $$LATEST_SUBJECT"; \
+	echo "  Deadline: $(FINAL_DEADLINE_HUMAN)"; \
+	if [ "$$LATEST_EPOCH" -gt "$(FINAL_DEADLINE_EPOCH)" ]; then \
+		echo ""; \
+		echo "ERROR: Latest commit on main is AFTER the final submission deadline."; \
+		echo "       Delayed submissions are not accepted."; \
+		exit 1; \
+	fi
+	@echo "  OK: latest commit is at or before the deadline."
+	@echo "=== [1/3] Running evaluate_tt_ghostfolio ==="
+	$(MAKE) evaluate_tt_ghostfolio
+	@echo "=== [2/3] Publishing to final_submissions (thorough Claude review) ==="
+	uv run --project tt python evaluate/scoring/publish_scores.py --project ghostfolio --final
