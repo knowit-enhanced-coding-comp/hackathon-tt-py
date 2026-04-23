@@ -1,0 +1,53 @@
+{
+  "@ghostfolio/api/app/portfolio/calculator/portfolio-calculator": {
+    "python_module": "app.wrapper.portfolio.calculator.portfolio_calculator",
+    "symbols": {"PortfolioCalculator": "PortfolioCalculator"}
+  },
+  "@ghostfolio/common/interfaces": {
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {
+      "SymbolMetrics": "SymbolMetrics"
+    }
+  },
+  "@ghostfolio/api/app/portfolio/interfaces/portfolio-order-item.interface": {
+    "python_module": "app.wrapper.portfolio.interfaces.portfolio_order_item",
+    "symbols": {"PortfolioOrderItem": "PortfolioOrderItem"}
+  },
+  "@ghostfolio/api/app/portfolio/interfaces/portfolio-order.interface": {
+    "python_module": "app.wrapper.portfolio.interfaces.portfolio_order",
+    "symbols": {"PortfolioOrder": "PortfolioOrder"}
+  },
+  "@ghostfolio/api/app/portfolio/interfaces/transaction-point-symbol.interface": {
+    "python_module": "app.wrapper.portfolio.interfaces.transaction_point",
+    "symbols": {"TransactionPointSymbol": "TransactionPointSymbol"}
+  },
+  "@ghostfolio/api/helper/portfolio.helper": {
+    "python_module": "app.implementation.helpers.portfolio_helper",
+    "symbols": {"getFactor": "get_factor"}
+  },
+  "@ghostfolio/common/calculation-helper": {
+    "python_module": "app.implementation.helpers.calculation_helper",
+    "symbols": {"getIntervalFromDateRange": "get_interval_from_date_range"}
+  },
+  "@ghostfolio/common/helper": {
+    "python_module": "app.implementation.helpers.common_helper",
+    "symbols": {
+      "DATE_FORMAT": "DATE_FORMAT",
+      "getSum": "get_sum",
+      "parseDate": "parse_date",
+      "resetHours": "reset_hours"
+    }
+  },
+  "@ghostfolio/common/models": {
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {}
+  },
+  "@ghostfolio/common/types": {
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {}
+  },
+  "@ghostfolio/common/types/performance-calculation-type.type": {
+    "python_module": "app.wrapper.portfolio.interfaces",
+    "symbols": {}
+  }
+}

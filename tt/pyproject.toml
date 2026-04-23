@@ -10,12 +10,15 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    "tree-sitter>=0.23",
+    "tree-sitter-typescript>=0.23",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2",
     "requests>=2.32",
+    "hypothesis>=6.100",
 ]
 
 [project.scripts]
@@ -23,3 +26,8 @@ tt = "tt.cli:main"
 
 [tool.setuptools.packages]
 find = {}
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: slow integration tests that run the full translator pipeline",
+]
